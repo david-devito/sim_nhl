@@ -18,8 +18,8 @@ teamStats['PK_cnts'] = pd.read_csv('input/2020_2021_TeamStats_Counts_PK.csv').se
 
 gameResults = pd.read_csv('input/2020_2021_GameResults.csv')
 
-homeTeam = 'Pittsburgh Penguins'
-awayTeam = 'Philadelphia Flyers'
+homeTeam = 'Winnipeg Jets'
+awayTeam = 'Ottawa Senators'
 
 
 
@@ -65,18 +65,44 @@ for curStat in SC_cnts.keys():
     elif ('PPA' in curStat) or ('PKH' in curStat):
         SC_cnts[curStat] = round(SC_cnts[curStat]*PP_TOI_pred_A)
 
-# SIMULATE OUTCOMES OF HOME SCORING CHANCES
-outcomes_H = dict()
-outcomes_A = dict()
-for curStat in SC_cnts.keys():
-    if 'A' in curStat:
-        outcomes_A[curStat] = np.sum(np.random.choice([0,1], size=int(SC_cnts[curStat]), replace=True, p=[1-SC_prob[curStat], SC_prob[curStat]]))
-    else:
-        outcomes_H[curStat] = np.sum(np.random.choice([0,1], size=int(SC_cnts[curStat]), replace=True, p=[1-SC_prob[curStat], SC_prob[curStat]]))
+# SIMULATE OUTCOMES
+numSims = 10000
+compiled_outcomes_H = []
+compiled_outcomes_A = []
+for i in range(0,numSims):
+    outcomes_H = dict()
+    outcomes_A = dict()
+    for curStat in SC_cnts.keys():
+        if 'A' in curStat:
+            outcomes_A[curStat] = np.sum(np.random.choice([0,1], size=int(SC_cnts[curStat]), replace=True, p=[1-SC_prob[curStat], SC_prob[curStat]]))
+        else:
+            outcomes_H[curStat] = np.sum(np.random.choice([0,1], size=int(SC_cnts[curStat]), replace=True, p=[1-SC_prob[curStat], SC_prob[curStat]]))
+    # Append current simresults to list
+    compiled_outcomes_H.append(sum(outcomes_H.values()))
+    compiled_outcomes_A.append(sum(outcomes_A.values()))
+
+compiled_outcomes_H = [x if x <= 7 else 7 for x in compiled_outcomes_H]
+compiled_outcomes_A = [x if x <= 7 else 7 for x in compiled_outcomes_A]
+
+labels, counts = np.unique(compiled_outcomes_H, return_counts=True)
+plt.bar(labels-0.2, counts, align='center',width=0.4,alpha=0.5,facecolor='red',edgecolor='black')
+plt.gca().set_xticks(labels)
+labels, counts = np.unique(compiled_outcomes_A, return_counts=True)
+plt.bar(labels+0.2, counts, align='center',width=0.4,alpha=0.5,facecolor='green',edgecolor='black')
+colors = {homeTeam:'red', awayTeam:'green'}         
+labels = list(colors.keys())
+handles = [plt.Rectangle((0,0),1,1, color=colors[label]) for label in labels]
+plt.legend(handles, labels)
+
+plt.axvline(np.mean(compiled_outcomes_H), color='red', linewidth=3)
+plt.axvline(np.mean(compiled_outcomes_A), color='green', linewidth=3)
+
+
+plt.show()
     
 
-print(f"{awayTeam} - {sum(outcomes_A.values())}")
-print(f"{homeTeam} - {sum(outcomes_H.values())}")
+#print(f"{awayTeam} - {sum(outcomes_A.values())}")
+#print(f"{homeTeam} - {sum(outcomes_H.values())}")
 
 
 
