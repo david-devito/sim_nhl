@@ -15,11 +15,30 @@ teamStats['EV_cnts'] = pd.read_csv('input/2020_2021_TeamStats_Counts_EV.csv').se
 teamStats['PP_cnts'] = pd.read_csv('input/2020_2021_TeamStats_Counts_PP.csv').set_index('Team',drop=True)
 teamStats['PK_cnts'] = pd.read_csv('input/2020_2021_TeamStats_Counts_PK.csv').set_index('Team',drop=True)
 
+goalieStats = dict()
+goalieStats['EV'] = pd.read_csv('input/2020_2021_GoalieStats_Rates_EV.csv').set_index('Player',drop=True)
+goalieStats['PP'] = pd.read_csv('input/2020_2021_GoalieStats_Rates_PP.csv').set_index('Player',drop=True)
+goalieStats['PK'] = pd.read_csv('input/2020_2021_GoalieStats_Rates_PK.csv').set_index('Player',drop=True)
+
+
+
+
+
 
 gameResults = pd.read_csv('input/2020_2021_GameResults.csv')
 
 homeTeam = 'Winnipeg Jets'
 awayTeam = 'Ottawa Senators'
+goalieStats['HomeGoalie'] = 'Laurent Brossoit'
+goalieStats['AwayGoalie'] = 'Matt Murray'
+
+# Load Stats of Current Goalies - Mark Home Goalie as Away, and Away goalie as Home to correspond to ooposing skaters
+goalieStats['HDEVA'], goalieStats['MDEVA'], goalieStats['LDEVA'] = goalieStats['EV'].loc[goalieStats['HomeGoalie']]['HDSV%'], goalieStats['EV'].loc[goalieStats['HomeGoalie']]['MDSV%'], goalieStats['EV'].loc[goalieStats['HomeGoalie']]['LDSV%']
+goalieStats['HDEVH'], goalieStats['MDEVH'], goalieStats['LDEVH'] = goalieStats['EV'].loc[goalieStats['AwayGoalie']]['HDSV%'], goalieStats['EV'].loc[goalieStats['AwayGoalie']]['MDSV%'], goalieStats['EV'].loc[goalieStats['AwayGoalie']]['LDSV%']
+goalieStats['HDPPA'], goalieStats['MDPPA'], goalieStats['LDPPA'] = goalieStats['PP'].loc[goalieStats['HomeGoalie']]['HDSV%'], goalieStats['PP'].loc[goalieStats['HomeGoalie']]['MDSV%'], goalieStats['PP'].loc[goalieStats['HomeGoalie']]['LDSV%']
+goalieStats['HDPPH'], goalieStats['MDPPH'], goalieStats['LDPPH'] = goalieStats['PP'].loc[goalieStats['AwayGoalie']]['HDSV%'], goalieStats['PP'].loc[goalieStats['AwayGoalie']]['MDSV%'], goalieStats['PP'].loc[goalieStats['AwayGoalie']]['LDSV%']
+goalieStats['HDPKA'], goalieStats['MDPKA'], goalieStats['LDPKA'] = goalieStats['PK'].loc[goalieStats['HomeGoalie']]['HDSV%'], goalieStats['PK'].loc[goalieStats['HomeGoalie']]['MDSV%'], goalieStats['PK'].loc[goalieStats['HomeGoalie']]['LDSV%']
+goalieStats['HDPKH'], goalieStats['MDPKH'], goalieStats['LDPKH'] = goalieStats['PK'].loc[goalieStats['AwayGoalie']]['HDSV%'], goalieStats['PK'].loc[goalieStats['AwayGoalie']]['MDSV%'], goalieStats['PK'].loc[goalieStats['AwayGoalie']]['LDSV%']
 
 
 
@@ -38,6 +57,12 @@ for curStat in ['HD','MD','LD']:
     for curSituation in ['EV','PP','PK']:
         SC_cnts[curStat + curSituation + 'H'], SC_prob[curStat + curSituation + 'H'] = SCNumAndProb(teamStats[curSituation],curStat,homeTeam,awayTeam)
         SC_cnts[curStat + curSituation + 'A'], SC_prob[curStat + curSituation + 'A'] = SCNumAndProb(teamStats[curSituation],curStat,awayTeam,homeTeam)
+
+# ADJUST SCORING PROBABILITY BASED ON OPPOSING GOALIE SV%
+for curStat in SC_prob.keys():
+    SC_prob[curStat] = (SC_prob[curStat] + (1-float(goalieStats[curStat])))/2
+
+
 
 
 
@@ -101,12 +126,16 @@ plt.axvline(np.mean(compiled_outcomes_A), color='green', linewidth=3)
 plt.show()
     
 
-#print(f"{awayTeam} - {sum(outcomes_A.values())}")
-#print(f"{homeTeam} - {sum(outcomes_H.values())}")
 
 
+winProb = [x1 - x2 for (x1, x2) in zip(compiled_outcomes_H, compiled_outcomes_A)]
+winProb_H = round((len([x for x in winProb if x > 0])/numSims)*100,2)
+winProb_A = round((len([x for x in winProb if x < 0])/numSims)*100,2)
+winProb_T = round((len([x for x in winProb if x == 0])/numSims)*100,2)
 
-
+print(f"{awayTeam} = {winProb_A}%")
+print(f"Tie = {winProb_T}%")
+print(f"{homeTeam} = {winProb_H}%")
 
 
 
