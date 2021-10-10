@@ -1,10 +1,14 @@
-#Incorporate high-danger, medium-danger, low-danger scoring chances as that's what you have sv% for for goalies
+# Add paths of additional scripts
+import sys
+sys.path.append('./functions')
 
 
 
 import pandas as pd
 import numpy as np
 import matplotlib.pyplot as plt
+import assorted_plots
+import itertools
 
 teamStats = dict()
 teamStats['EV'] = pd.read_csv('input/2020_2021_TeamStats_Rates_EV.csv').set_index('Team',drop=True)
@@ -22,24 +26,15 @@ goalieStats['PK'] = pd.read_csv('input/2020_2021_GoalieStats_Rates_PK.csv').set_
 
 
 
-
-
-
-gameResults = pd.read_csv('input/2020_2021_GameResults.csv')
-
 homeTeam = 'Winnipeg Jets'
 awayTeam = 'Ottawa Senators'
 goalieStats['HomeGoalie'] = 'Laurent Brossoit'
 goalieStats['AwayGoalie'] = 'Matt Murray'
 
 # Load Stats of Current Goalies - Mark Home Goalie as Away, and Away goalie as Home to correspond to ooposing skaters
-goalieStats['HDEVA'], goalieStats['MDEVA'], goalieStats['LDEVA'] = goalieStats['EV'].loc[goalieStats['HomeGoalie']]['HDSV%'], goalieStats['EV'].loc[goalieStats['HomeGoalie']]['MDSV%'], goalieStats['EV'].loc[goalieStats['HomeGoalie']]['LDSV%']
-goalieStats['HDEVH'], goalieStats['MDEVH'], goalieStats['LDEVH'] = goalieStats['EV'].loc[goalieStats['AwayGoalie']]['HDSV%'], goalieStats['EV'].loc[goalieStats['AwayGoalie']]['MDSV%'], goalieStats['EV'].loc[goalieStats['AwayGoalie']]['LDSV%']
-goalieStats['HDPPA'], goalieStats['MDPPA'], goalieStats['LDPPA'] = goalieStats['PP'].loc[goalieStats['HomeGoalie']]['HDSV%'], goalieStats['PP'].loc[goalieStats['HomeGoalie']]['MDSV%'], goalieStats['PP'].loc[goalieStats['HomeGoalie']]['LDSV%']
-goalieStats['HDPPH'], goalieStats['MDPPH'], goalieStats['LDPPH'] = goalieStats['PP'].loc[goalieStats['AwayGoalie']]['HDSV%'], goalieStats['PP'].loc[goalieStats['AwayGoalie']]['MDSV%'], goalieStats['PP'].loc[goalieStats['AwayGoalie']]['LDSV%']
-goalieStats['HDPKA'], goalieStats['MDPKA'], goalieStats['LDPKA'] = goalieStats['PK'].loc[goalieStats['HomeGoalie']]['HDSV%'], goalieStats['PK'].loc[goalieStats['HomeGoalie']]['MDSV%'], goalieStats['PK'].loc[goalieStats['HomeGoalie']]['LDSV%']
-goalieStats['HDPKH'], goalieStats['MDPKH'], goalieStats['LDPKH'] = goalieStats['PK'].loc[goalieStats['AwayGoalie']]['HDSV%'], goalieStats['PK'].loc[goalieStats['AwayGoalie']]['MDSV%'], goalieStats['PK'].loc[goalieStats['AwayGoalie']]['LDSV%']
-
+for curSituation in list(itertools.product(['HD','MD','LD'],['EV','PP','PK'])):
+    goalieStats[curSituation[0] + curSituation[1] + 'A'] = goalieStats[curSituation[1]].loc[goalieStats['HomeGoalie']][curSituation[0] + 'SV%']
+    goalieStats[curSituation[0] + curSituation[1] + 'H'] = goalieStats[curSituation[1]].loc[goalieStats['AwayGoalie']][curSituation[0] + 'SV%']
 
 
 # CALCULATE PROJECTED SCORING CHANCES AND SCORING PROBABILITY IN EACH SITUATION
@@ -53,10 +48,9 @@ def SCNumAndProb(df,stat,curTeam,oppTeam):
 SC_cnts = dict()
 SC_prob = dict()
 
-for curStat in ['HD','MD','LD']:
-    for curSituation in ['EV','PP','PK']:
-        SC_cnts[curStat + curSituation + 'H'], SC_prob[curStat + curSituation + 'H'] = SCNumAndProb(teamStats[curSituation],curStat,homeTeam,awayTeam)
-        SC_cnts[curStat + curSituation + 'A'], SC_prob[curStat + curSituation + 'A'] = SCNumAndProb(teamStats[curSituation],curStat,awayTeam,homeTeam)
+for curSituation in list(itertools.product(['HD','MD','LD'],['EV','PP','PK'])):
+    SC_cnts[curSituation[0] + curSituation[1] + 'H'], SC_prob[curSituation[0] + curSituation[1] + 'H'] = SCNumAndProb(teamStats[curSituation[1]],curSituation[0],homeTeam,awayTeam)
+    SC_cnts[curSituation[0] + curSituation[1] + 'A'], SC_prob[curSituation[0] + curSituation[1] + 'A'] = SCNumAndProb(teamStats[curSituation[1]],curSituation[0],awayTeam,homeTeam)
 
 # ADJUST SCORING PROBABILITY BASED ON OPPOSING GOALIE SV%
 for curStat in SC_prob.keys():
@@ -64,17 +58,17 @@ for curStat in SC_prob.keys():
 
 
 
-
-
 # MINUTES DISTRIBUTION
-# Home Situational TOI Ratios - Needs to be ratios as OT causes TOI to go over 60 mins per game
-total_TOI_H = teamStats['EV_cnts'].loc[homeTeam]['TOI'] + teamStats['PP_cnts'].loc[homeTeam]['TOI'] + teamStats['PK_cnts'].loc[homeTeam]['TOI']
-PP_TOI_H = (teamStats['PP_cnts'].loc[homeTeam]['TOI']/total_TOI_H)*60
-PK_TOI_H = (teamStats['PK_cnts'].loc[homeTeam]['TOI']/total_TOI_H)*60
-# Away Situational TOI Ratios - Needs to be ratios as OT causes TOI to go over 60 mins per game
-total_TOI_A = teamStats['EV_cnts'].loc[awayTeam]['TOI'] + teamStats['PP_cnts'].loc[awayTeam]['TOI'] + teamStats['PK_cnts'].loc[awayTeam]['TOI']
-PP_TOI_A = (teamStats['PP_cnts'].loc[awayTeam]['TOI']/total_TOI_A)*60
-PK_TOI_A = (teamStats['PK_cnts'].loc[awayTeam]['TOI']/total_TOI_A)*60
+def calcTeamTOIBySituation(df,team):
+    # Situational TOI Ratios - Needs to be ratios as OT causes TOI to go over 60 mins per game
+    total_TOI = df['EV_cnts'].loc[team]['TOI'] + df['PP_cnts'].loc[team]['TOI'] + df['PK_cnts'].loc[team]['TOI']
+    PP_TOI = (df['PP_cnts'].loc[team]['TOI']/total_TOI)*60
+    PK_TOI = (df['PK_cnts'].loc[team]['TOI']/total_TOI)*60
+    return total_TOI, PP_TOI, PK_TOI
+    
+total_TOI_H, PP_TOI_H, PK_TOI_H = calcTeamTOIBySituation(teamStats,homeTeam)
+total_TOI_A, PP_TOI_A, PK_TOI_A = calcTeamTOIBySituation(teamStats,awayTeam)
+
 # Predicted Special Teams TOI
 PP_TOI_pred_H = (PP_TOI_H + PK_TOI_A)/2
 PP_TOI_pred_A = (PP_TOI_A + PK_TOI_H)/2
@@ -90,8 +84,8 @@ for curStat in SC_cnts.keys():
     elif ('PPA' in curStat) or ('PKH' in curStat):
         SC_cnts[curStat] = round(SC_cnts[curStat]*PP_TOI_pred_A)
 
-# SIMULATE OUTCOMES
-numSims = 10000
+# SIMULATE OUTCOMES OF EACH SITUATION
+numSims = 10
 compiled_outcomes_H = []
 compiled_outcomes_A = []
 for i in range(0,numSims):
@@ -109,30 +103,16 @@ for i in range(0,numSims):
 compiled_outcomes_H = [x if x <= 7 else 7 for x in compiled_outcomes_H]
 compiled_outcomes_A = [x if x <= 7 else 7 for x in compiled_outcomes_A]
 
-labels, counts = np.unique(compiled_outcomes_H, return_counts=True)
-plt.bar(labels-0.2, counts, align='center',width=0.4,alpha=0.5,facecolor='red',edgecolor='black')
-plt.gca().set_xticks(labels)
-labels, counts = np.unique(compiled_outcomes_A, return_counts=True)
-plt.bar(labels+0.2, counts, align='center',width=0.4,alpha=0.5,facecolor='green',edgecolor='black')
-colors = {homeTeam:'red', awayTeam:'green'}         
-labels = list(colors.keys())
-handles = [plt.Rectangle((0,0),1,1, color=colors[label]) for label in labels]
-plt.legend(handles, labels)
 
-plt.axvline(np.mean(compiled_outcomes_H), color='red', linewidth=3)
-plt.axvline(np.mean(compiled_outcomes_A), color='green', linewidth=3)
+# Plot Predicted Distribution of Goals for Each Team
+assorted_plots.plotPredictedTeamGoals(compiled_outcomes_H,compiled_outcomes_A,homeTeam,awayTeam)
 
 
-plt.show()
-    
-
-
-
+# Calculated Win and Tie Probabilities
 winProb = [x1 - x2 for (x1, x2) in zip(compiled_outcomes_H, compiled_outcomes_A)]
 winProb_H = round((len([x for x in winProb if x > 0])/numSims)*100,2)
 winProb_A = round((len([x for x in winProb if x < 0])/numSims)*100,2)
 winProb_T = round((len([x for x in winProb if x == 0])/numSims)*100,2)
-
 print(f"{awayTeam} = {winProb_A}%")
 print(f"Tie = {winProb_T}%")
 print(f"{homeTeam} = {winProb_H}%")
