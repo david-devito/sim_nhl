@@ -16,13 +16,15 @@ import load_stats
 
 
 # LOAD STATISTICS FILES
+# Replace NAN values or values for players with fewer than 30 mins played
+
 teamStats, goalieStats = load_stats.loadStats()
 
 # INPUT
-homeTeam = 'Tampa Bay Lightning'
-awayTeam = 'Pittsburgh Penguins'
-goalieStats['HomeGoalie'] = 'Andrei Vasilevskiy'
-goalieStats['AwayGoalie'] = 'Tristan Jarry'
+homeTeam = 'Montreal Canadiens'
+awayTeam = 'Toronto Maple Leafs'
+goalieStats['HomeGoalie'] = 'Jake Allen'
+goalieStats['AwayGoalie'] = 'Petr Mrazek'
 daysRest_H = 0
 daysRest_A = 0
 
@@ -31,8 +33,12 @@ restAdj_WP, restAdj_Goals = assorted_minor_functions.restAdvCalc(daysRest_H,days
 
 # Assign Stats of Current Goalies - Mark Home Goalie as Away, and Away goalie as Home to correspond to ooposing skaters
 for curSituation in list(itertools.product(['HD','MD','LD'],['EV','PP','PK'])):
-    goalieStats[curSituation[0] + curSituation[1] + 'A'] = goalieStats[curSituation[1]].loc[goalieStats['HomeGoalie']][curSituation[0] + 'SV%']
-    goalieStats[curSituation[0] + curSituation[1] + 'H'] = goalieStats[curSituation[1]].loc[goalieStats['AwayGoalie']][curSituation[0] + 'SV%']
+    #Adjust PP/PK for fact that on PK when facing opponent's PP, and vice versa
+    if curSituation[1] == 'PP': adjSituation = 'PK'
+    elif curSituation[1] == 'PK': adjSituation = 'PP'
+    else: adjSituation = 'EV'
+    goalieStats[curSituation[0] + curSituation[1] + 'A'] = goalieStats[adjSituation].loc[goalieStats['HomeGoalie']][curSituation[0] + 'SV%']
+    goalieStats[curSituation[0] + curSituation[1] + 'H'] = goalieStats[adjSituation].loc[goalieStats['AwayGoalie']][curSituation[0] + 'SV%']
 
 
 # CALCULATE PROJECTED SCORING CHANCES AND SCORING PROBABILITY IN EACH SITUATION
@@ -47,8 +53,11 @@ SC_cnts = dict()
 SC_prob = dict()
 
 for curSituation in list(itertools.product(['HD','MD','LD'],['EV','PP','PK'])):
-    SC_cnts[curSituation[0] + curSituation[1] + 'H'], SC_prob[curSituation[0] + curSituation[1] + 'H'] = SCNumAndProb(teamStats[curSituation[1] + '_H'],teamStats[curSituation[1] + '_A'],curSituation[0],homeTeam,awayTeam)
-    SC_cnts[curSituation[0] + curSituation[1] + 'A'], SC_prob[curSituation[0] + curSituation[1] + 'A'] = SCNumAndProb(teamStats[curSituation[1] + '_A'],teamStats[curSituation[1] + '_H'],curSituation[0],awayTeam,homeTeam)
+    if curSituation[1] == 'PP': adjSituation = 'PK'
+    elif curSituation[1] == 'PK': adjSituation = 'PP'
+    else: adjSituation = 'EV'
+    SC_cnts[curSituation[0] + curSituation[1] + 'H'], SC_prob[curSituation[0] + curSituation[1] + 'H'] = SCNumAndProb(teamStats[curSituation[1] + '_H'],teamStats[adjSituation + '_A'],curSituation[0],homeTeam,awayTeam)
+    SC_cnts[curSituation[0] + curSituation[1] + 'A'], SC_prob[curSituation[0] + curSituation[1] + 'A'] = SCNumAndProb(teamStats[curSituation[1] + '_A'],teamStats[adjSituation + '_H'],curSituation[0],awayTeam,homeTeam)
 
 # ADJUST SCORING PROBABILITY BASED ON OPPOSING GOALIE SV% AND REST ADVANTAGE
 for curStat in SC_prob.keys():
