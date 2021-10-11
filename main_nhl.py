@@ -31,11 +31,22 @@ goalieStats['PP'] = pd.read_csv('input/2020_2021_GoalieStats_Rates_PP.csv').set_
 goalieStats['PK'] = pd.read_csv('input/2020_2021_GoalieStats_Rates_PK.csv').set_index('Player',drop=True)
 
 
-
 homeTeam = 'Winnipeg Jets'
 awayTeam = 'Ottawa Senators'
-goalieStats['HomeGoalie'] = 'Laurent Brossoit'
+goalieStats['HomeGoalie'] = 'Connor Hellebuyck'
 goalieStats['AwayGoalie'] = 'Matt Murray'
+daysRest_H = 4
+daysRest_A = 2
+
+# HOME TEAM WIN PROBABILITY ADJUSTMENT BASED ON REST ADVANTAGE
+# Array of change in Win Prob% based on Rest Advantage - source: https://www.tsn.ca/yost-rest-makes-a-major-difference-in-nhl-performance-1.120073
+restDiff_WP = [-3, -0.4, -1.1, 0, 3.6, 3, -3.7]
+restDiff_Goals = [-0.037, -0.014, -0.001, 0, 0.014, 0.02, -0.003]
+restDiff = daysRest_H - daysRest_A
+if restDiff >= 3: restDiff = 3
+elif restDiff <= -3: restDiff = -3
+restAdj_WP = restDiff_WP[restDiff + 3] # Add 3 to get proper position in restDiff_WP Array
+restAdj_Goals = restDiff_Goals[restDiff + 3] # Add 3 to get proper position in restDiff_WP Array
 
 # Load Stats of Current Goalies - Mark Home Goalie as Away, and Away goalie as Home to correspond to ooposing skaters
 for curSituation in list(itertools.product(['HD','MD','LD'],['EV','PP','PK'])):
@@ -61,6 +72,11 @@ for curSituation in list(itertools.product(['HD','MD','LD'],['EV','PP','PK'])):
 # ADJUST SCORING PROBABILITY BASED ON OPPOSING GOALIE SV%
 for curStat in SC_prob.keys():
     SC_prob[curStat] = (SC_prob[curStat] + (1-float(goalieStats[curStat])))/2
+    # Adjust based on goal differential of rest advantage
+    if curStat.endswith('H'): # Home Team Stat
+        SC_prob[curStat] = SC_prob[curStat] + (SC_prob[curStat]*restAdj_Goals)
+    else:
+        SC_prob[curStat] = SC_prob[curStat] - (SC_prob[curStat]*restAdj_Goals)
 
 
 
@@ -119,6 +135,10 @@ winProb = [x1 - x2 for (x1, x2) in zip(compiled_outcomes_H, compiled_outcomes_A)
 winProb_H = round((len([x for x in winProb if x > 0])/numSims)*100,2)
 winProb_A = round((len([x for x in winProb if x < 0])/numSims)*100,2)
 winProb_T = round((len([x for x in winProb if x == 0])/numSims)*100,2)
+# Adjust Probabilities based on Rest Adjustment
+winProb_H = winProb_H + restAdj_WP
+winProb_A = winProb_A - restAdj_WP
+
 print(f"{awayTeam} = {winProb_A}%")
 print(f"Tie = {winProb_T}%")
 print(f"{homeTeam} = {winProb_H}%")
