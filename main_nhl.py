@@ -11,13 +11,19 @@ import assorted_plots
 import itertools
 
 teamStats = dict()
-teamStats['EV'] = pd.read_csv('input/2020_2021_TeamStats_Rates_EV.csv').set_index('Team',drop=True)
-teamStats['PP'] = pd.read_csv('input/2020_2021_TeamStats_Rates_PP.csv').set_index('Team',drop=True)
-teamStats['PK'] = pd.read_csv('input/2020_2021_TeamStats_Rates_PK.csv').set_index('Team',drop=True)
+teamStats['EV_H'] = pd.read_csv('input/2020_2021_TeamStats_Rates_EV_H.csv').set_index('Team',drop=True)
+teamStats['PP_H'] = pd.read_csv('input/2020_2021_TeamStats_Rates_PP_H.csv').set_index('Team',drop=True)
+teamStats['PK_H'] = pd.read_csv('input/2020_2021_TeamStats_Rates_PK_H.csv').set_index('Team',drop=True)
+teamStats['EV_A'] = pd.read_csv('input/2020_2021_TeamStats_Rates_EV_A.csv').set_index('Team',drop=True)
+teamStats['PP_A'] = pd.read_csv('input/2020_2021_TeamStats_Rates_PP_A.csv').set_index('Team',drop=True)
+teamStats['PK_A'] = pd.read_csv('input/2020_2021_TeamStats_Rates_PK_A.csv').set_index('Team',drop=True)
 
-teamStats['EV_cnts'] = pd.read_csv('input/2020_2021_TeamStats_Counts_EV.csv').set_index('Team',drop=True)
-teamStats['PP_cnts'] = pd.read_csv('input/2020_2021_TeamStats_Counts_PP.csv').set_index('Team',drop=True)
-teamStats['PK_cnts'] = pd.read_csv('input/2020_2021_TeamStats_Counts_PK.csv').set_index('Team',drop=True)
+teamStats['EV_cnts_H'] = pd.read_csv('input/2020_2021_TeamStats_Counts_EV_H.csv').set_index('Team',drop=True)
+teamStats['PP_cnts_H'] = pd.read_csv('input/2020_2021_TeamStats_Counts_PP_H.csv').set_index('Team',drop=True)
+teamStats['PK_cnts_H'] = pd.read_csv('input/2020_2021_TeamStats_Counts_PK_H.csv').set_index('Team',drop=True)
+teamStats['EV_cnts_A'] = pd.read_csv('input/2020_2021_TeamStats_Counts_EV_A.csv').set_index('Team',drop=True)
+teamStats['PP_cnts_A'] = pd.read_csv('input/2020_2021_TeamStats_Counts_PP_A.csv').set_index('Team',drop=True)
+teamStats['PK_cnts_A'] = pd.read_csv('input/2020_2021_TeamStats_Counts_PK_A.csv').set_index('Team',drop=True)
 
 goalieStats = dict()
 goalieStats['EV'] = pd.read_csv('input/2020_2021_GoalieStats_Rates_EV.csv').set_index('Player',drop=True)
@@ -38,19 +44,19 @@ for curSituation in list(itertools.product(['HD','MD','LD'],['EV','PP','PK'])):
 
 
 # CALCULATE PROJECTED SCORING CHANCES AND SCORING PROBABILITY IN EACH SITUATION
-def SCNumAndProb(df,stat,curTeam,oppTeam):
+def SCNumAndProb(df_curTeam,df_oppTeam,stat,curTeam,oppTeam):
     # Projected scoring chances based on average of scoring chances for and those allowed by opponent
-    SC_num = (df.loc[curTeam][stat + 'SF/60'] + df.loc[oppTeam][stat + 'SA/60'])/2
+    SC_num = (df_curTeam.loc[curTeam][stat + 'SF/60'] + df_oppTeam.loc[oppTeam][stat + 'SA/60'])/2
     # Scoring probability on scoring chances = goals divided by scoring chances
-    SC_prob = ((df.loc[curTeam][stat + 'GF/60'] + df.loc[oppTeam][stat + 'GA/60'])/2)/SC_num
+    SC_prob = ((df_curTeam.loc[curTeam][stat + 'GF/60'] + df_oppTeam.loc[oppTeam][stat + 'GA/60'])/2)/SC_num
     return SC_num/60, SC_prob
 
 SC_cnts = dict()
 SC_prob = dict()
 
 for curSituation in list(itertools.product(['HD','MD','LD'],['EV','PP','PK'])):
-    SC_cnts[curSituation[0] + curSituation[1] + 'H'], SC_prob[curSituation[0] + curSituation[1] + 'H'] = SCNumAndProb(teamStats[curSituation[1]],curSituation[0],homeTeam,awayTeam)
-    SC_cnts[curSituation[0] + curSituation[1] + 'A'], SC_prob[curSituation[0] + curSituation[1] + 'A'] = SCNumAndProb(teamStats[curSituation[1]],curSituation[0],awayTeam,homeTeam)
+    SC_cnts[curSituation[0] + curSituation[1] + 'H'], SC_prob[curSituation[0] + curSituation[1] + 'H'] = SCNumAndProb(teamStats[curSituation[1] + '_H'],teamStats[curSituation[1] + '_A'],curSituation[0],homeTeam,awayTeam)
+    SC_cnts[curSituation[0] + curSituation[1] + 'A'], SC_prob[curSituation[0] + curSituation[1] + 'A'] = SCNumAndProb(teamStats[curSituation[1] + '_A'],teamStats[curSituation[1] + '_H'],curSituation[0],awayTeam,homeTeam)
 
 # ADJUST SCORING PROBABILITY BASED ON OPPOSING GOALIE SV%
 for curStat in SC_prob.keys():
@@ -59,15 +65,15 @@ for curStat in SC_prob.keys():
 
 
 # MINUTES DISTRIBUTION
-def calcTeamTOIBySituation(df,team):
+def calcTeamTOIBySituation(df,team,HorA):
     # Situational TOI Ratios - Needs to be ratios as OT causes TOI to go over 60 mins per game
-    total_TOI = df['EV_cnts'].loc[team]['TOI'] + df['PP_cnts'].loc[team]['TOI'] + df['PK_cnts'].loc[team]['TOI']
-    PP_TOI = (df['PP_cnts'].loc[team]['TOI']/total_TOI)*60
-    PK_TOI = (df['PK_cnts'].loc[team]['TOI']/total_TOI)*60
+    total_TOI = df['EV_cnts' + HorA].loc[team]['TOI'] + df['PP_cnts' + HorA].loc[team]['TOI'] + df['PK_cnts' + HorA].loc[team]['TOI']
+    PP_TOI = (df['PP_cnts' + HorA].loc[team]['TOI']/total_TOI)*60
+    PK_TOI = (df['PK_cnts' + HorA].loc[team]['TOI']/total_TOI)*60
     return total_TOI, PP_TOI, PK_TOI
     
-total_TOI_H, PP_TOI_H, PK_TOI_H = calcTeamTOIBySituation(teamStats,homeTeam)
-total_TOI_A, PP_TOI_A, PK_TOI_A = calcTeamTOIBySituation(teamStats,awayTeam)
+total_TOI_H, PP_TOI_H, PK_TOI_H = calcTeamTOIBySituation(teamStats,homeTeam,'_H')
+total_TOI_A, PP_TOI_A, PK_TOI_A = calcTeamTOIBySituation(teamStats,awayTeam,'_A')
 
 # Predicted Special Teams TOI
 PP_TOI_pred_H = (PP_TOI_H + PK_TOI_A)/2
