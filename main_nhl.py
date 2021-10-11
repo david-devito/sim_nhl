@@ -7,48 +7,29 @@ sys.path.append('./functions')
 import pandas as pd
 import numpy as np
 import matplotlib.pyplot as plt
-import assorted_plots
 import itertools
 
-teamStats = dict()
-teamStats['EV_H'] = pd.read_csv('input/2020_2021_TeamStats_Rates_EV_H.csv').set_index('Team',drop=True)
-teamStats['PP_H'] = pd.read_csv('input/2020_2021_TeamStats_Rates_PP_H.csv').set_index('Team',drop=True)
-teamStats['PK_H'] = pd.read_csv('input/2020_2021_TeamStats_Rates_PK_H.csv').set_index('Team',drop=True)
-teamStats['EV_A'] = pd.read_csv('input/2020_2021_TeamStats_Rates_EV_A.csv').set_index('Team',drop=True)
-teamStats['PP_A'] = pd.read_csv('input/2020_2021_TeamStats_Rates_PP_A.csv').set_index('Team',drop=True)
-teamStats['PK_A'] = pd.read_csv('input/2020_2021_TeamStats_Rates_PK_A.csv').set_index('Team',drop=True)
-
-teamStats['EV_cnts_H'] = pd.read_csv('input/2020_2021_TeamStats_Counts_EV_H.csv').set_index('Team',drop=True)
-teamStats['PP_cnts_H'] = pd.read_csv('input/2020_2021_TeamStats_Counts_PP_H.csv').set_index('Team',drop=True)
-teamStats['PK_cnts_H'] = pd.read_csv('input/2020_2021_TeamStats_Counts_PK_H.csv').set_index('Team',drop=True)
-teamStats['EV_cnts_A'] = pd.read_csv('input/2020_2021_TeamStats_Counts_EV_A.csv').set_index('Team',drop=True)
-teamStats['PP_cnts_A'] = pd.read_csv('input/2020_2021_TeamStats_Counts_PP_A.csv').set_index('Team',drop=True)
-teamStats['PK_cnts_A'] = pd.read_csv('input/2020_2021_TeamStats_Counts_PK_A.csv').set_index('Team',drop=True)
-
-goalieStats = dict()
-goalieStats['EV'] = pd.read_csv('input/2020_2021_GoalieStats_Rates_EV.csv').set_index('Player',drop=True)
-goalieStats['PP'] = pd.read_csv('input/2020_2021_GoalieStats_Rates_PP.csv').set_index('Player',drop=True)
-goalieStats['PK'] = pd.read_csv('input/2020_2021_GoalieStats_Rates_PK.csv').set_index('Player',drop=True)
+import assorted_plots
+import assorted_minor_functions
+import sog_outcome_simulator
+import load_stats
 
 
-homeTeam = 'Winnipeg Jets'
-awayTeam = 'Ottawa Senators'
-goalieStats['HomeGoalie'] = 'Connor Hellebuyck'
-goalieStats['AwayGoalie'] = 'Matt Murray'
-daysRest_H = 4
-daysRest_A = 2
+# LOAD STATISTICS FILES
+teamStats, goalieStats = load_stats.loadStats()
 
-# HOME TEAM WIN PROBABILITY ADJUSTMENT BASED ON REST ADVANTAGE
-# Array of change in Win Prob% based on Rest Advantage - source: https://www.tsn.ca/yost-rest-makes-a-major-difference-in-nhl-performance-1.120073
-restDiff_WP = [-3, -0.4, -1.1, 0, 3.6, 3, -3.7]
-restDiff_Goals = [-0.037, -0.014, -0.001, 0, 0.014, 0.02, -0.003]
-restDiff = daysRest_H - daysRest_A
-if restDiff >= 3: restDiff = 3
-elif restDiff <= -3: restDiff = -3
-restAdj_WP = restDiff_WP[restDiff + 3] # Add 3 to get proper position in restDiff_WP Array
-restAdj_Goals = restDiff_Goals[restDiff + 3] # Add 3 to get proper position in restDiff_WP Array
+# INPUT
+homeTeam = 'Tampa Bay Lightning'
+awayTeam = 'Pittsburgh Penguins'
+goalieStats['HomeGoalie'] = 'Andrei Vasilevskiy'
+goalieStats['AwayGoalie'] = 'Tristan Jarry'
+daysRest_H = 0
+daysRest_A = 0
 
-# Load Stats of Current Goalies - Mark Home Goalie as Away, and Away goalie as Home to correspond to ooposing skaters
+# HOME TEAM ADJUSTED WIN AND GOAL PROBABILITIES BASED ON REST ADVANTAGE
+restAdj_WP, restAdj_Goals = assorted_minor_functions.restAdvCalc(daysRest_H,daysRest_A)
+
+# Assign Stats of Current Goalies - Mark Home Goalie as Away, and Away goalie as Home to correspond to ooposing skaters
 for curSituation in list(itertools.product(['HD','MD','LD'],['EV','PP','PK'])):
     goalieStats[curSituation[0] + curSituation[1] + 'A'] = goalieStats[curSituation[1]].loc[goalieStats['HomeGoalie']][curSituation[0] + 'SV%']
     goalieStats[curSituation[0] + curSituation[1] + 'H'] = goalieStats[curSituation[1]].loc[goalieStats['AwayGoalie']][curSituation[0] + 'SV%']
@@ -69,7 +50,7 @@ for curSituation in list(itertools.product(['HD','MD','LD'],['EV','PP','PK'])):
     SC_cnts[curSituation[0] + curSituation[1] + 'H'], SC_prob[curSituation[0] + curSituation[1] + 'H'] = SCNumAndProb(teamStats[curSituation[1] + '_H'],teamStats[curSituation[1] + '_A'],curSituation[0],homeTeam,awayTeam)
     SC_cnts[curSituation[0] + curSituation[1] + 'A'], SC_prob[curSituation[0] + curSituation[1] + 'A'] = SCNumAndProb(teamStats[curSituation[1] + '_A'],teamStats[curSituation[1] + '_H'],curSituation[0],awayTeam,homeTeam)
 
-# ADJUST SCORING PROBABILITY BASED ON OPPOSING GOALIE SV%
+# ADJUST SCORING PROBABILITY BASED ON OPPOSING GOALIE SV% AND REST ADVANTAGE
 for curStat in SC_prob.keys():
     SC_prob[curStat] = (SC_prob[curStat] + (1-float(goalieStats[curStat])))/2
     # Adjust based on goal differential of rest advantage
@@ -107,24 +88,8 @@ for curStat in SC_cnts.keys():
         SC_cnts[curStat] = round(SC_cnts[curStat]*PP_TOI_pred_A)
 
 # SIMULATE OUTCOMES OF EACH SITUATION
-numSims = 10
-compiled_outcomes_H = []
-compiled_outcomes_A = []
-for i in range(0,numSims):
-    outcomes_H = dict()
-    outcomes_A = dict()
-    for curStat in SC_cnts.keys():
-        if 'A' in curStat:
-            outcomes_A[curStat] = np.sum(np.random.choice([0,1], size=int(SC_cnts[curStat]), replace=True, p=[1-SC_prob[curStat], SC_prob[curStat]]))
-        else:
-            outcomes_H[curStat] = np.sum(np.random.choice([0,1], size=int(SC_cnts[curStat]), replace=True, p=[1-SC_prob[curStat], SC_prob[curStat]]))
-    # Append current simresults to list
-    compiled_outcomes_H.append(sum(outcomes_H.values()))
-    compiled_outcomes_A.append(sum(outcomes_A.values()))
-
-compiled_outcomes_H = [x if x <= 7 else 7 for x in compiled_outcomes_H]
-compiled_outcomes_A = [x if x <= 7 else 7 for x in compiled_outcomes_A]
-
+numSims = 10000
+compiled_outcomes_H, compiled_outcomes_A = sog_outcome_simulator.simulate_sog(numSims,SC_cnts,SC_prob)
 
 # Plot Predicted Distribution of Goals for Each Team
 assorted_plots.plotPredictedTeamGoals(compiled_outcomes_H,compiled_outcomes_A,homeTeam,awayTeam)
