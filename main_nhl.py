@@ -1,3 +1,5 @@
+# USE GSAA/60 FOR GOALIE STATS
+
 # Add paths of additional scripts
 import sys
 sys.path.append('./functions')
@@ -23,10 +25,10 @@ import load_stats
 teamStats, playerStats, goalieStats = load_stats.loadStats()
 
 # INPUT
-homeTeam = 'Montreal Canadiens'
-awayTeam = 'Winnipeg Jets'
-goalieStats['HomeGoalie'] = 'Jake Allen'
-goalieStats['AwayGoalie'] = 'Connor Hellebuyck'
+homeTeam = 'Tampa Bay Lightning'
+awayTeam = 'Pittsburgh Penguins'
+goalieStats['HomeGoalie'] = 'Jack Campbell'
+goalieStats['AwayGoalie'] = 'Jake Allen'
 daysRest_H = 0
 daysRest_A = 0
 
@@ -35,7 +37,6 @@ restAdj_WP, restAdj_Goals = assorted_minor_functions.restAdvCalc(daysRest_H,days
 
 
 ## GET LINEUP INFORMATION
-
 def getLineup(teamName):
     # Scrape team line combos from DFO
     url = "https://www.dailyfaceoff.com/teams/" + teamName + "/line-combinations/"
@@ -61,38 +62,8 @@ for curSituation in list(itertools.product(['HD','MD','LD'],['EV','PP','PK'])):
     if curSituation[1] == 'PP': adjSituation = 'PK'
     elif curSituation[1] == 'PK': adjSituation = 'PP'
     else: adjSituation = 'EV'
-    goalieStats[curSituation[0] + curSituation[1] + 'A'] = goalieStats[adjSituation].loc[goalieStats['HomeGoalie']][curSituation[0] + 'SV%']
-    goalieStats[curSituation[0] + curSituation[1] + 'H'] = goalieStats[adjSituation].loc[goalieStats['AwayGoalie']][curSituation[0] + 'SV%']
-
-
-# CALCULATE PROJECTED SCORING CHANCES AND SCORING PROBABILITY IN EACH SITUATION
-def SCNumAndProb(df_curTeam,df_oppTeam,stat,curTeam,oppTeam):
-    # Projected scoring chances based on average of scoring chances for and those allowed by opponent
-    SC_num = (df_curTeam.loc[curTeam][stat + 'SF/60'] + df_oppTeam.loc[oppTeam][stat + 'SA/60'])/2
-    # Scoring probability on scoring chances = goals divided by scoring chances
-    SC_prob = ((df_curTeam.loc[curTeam][stat + 'GF/60'] + df_oppTeam.loc[oppTeam][stat + 'GA/60'])/2)/SC_num
-    return SC_num/60, SC_prob
-
-SC_cnts = dict()
-SC_prob = dict()
-
-for curSituation in list(itertools.product(['HD','MD','LD'],['EV','PP','PK'])):
-    if curSituation[1] == 'PP': adjSituation = 'PK'
-    elif curSituation[1] == 'PK': adjSituation = 'PP'
-    else: adjSituation = 'EV'
-    SC_cnts[curSituation[0] + curSituation[1] + 'H'], SC_prob[curSituation[0] + curSituation[1] + 'H'] = SCNumAndProb(teamStats[curSituation[1] + '_H'],teamStats[adjSituation + '_A'],curSituation[0],homeTeam,awayTeam)
-    SC_cnts[curSituation[0] + curSituation[1] + 'A'], SC_prob[curSituation[0] + curSituation[1] + 'A'] = SCNumAndProb(teamStats[curSituation[1] + '_A'],teamStats[adjSituation + '_H'],curSituation[0],awayTeam,homeTeam)
-
-# ADJUST SCORING PROBABILITY BASED ON OPPOSING GOALIE SV% AND REST ADVANTAGE
-for curStat in SC_prob.keys():
-    SC_prob[curStat] = (SC_prob[curStat] + (1-float(goalieStats[curStat])))/2
-    # Adjust based on goal differential of rest advantage
-    if curStat.endswith('H'): # Home Team Stat
-        SC_prob[curStat] = SC_prob[curStat] + (SC_prob[curStat]*restAdj_Goals)
-    else:
-        SC_prob[curStat] = SC_prob[curStat] - (SC_prob[curStat]*restAdj_Goals)
-
-
+    goalieStats[curSituation[0] + curSituation[1] + 'A'] = goalieStats[adjSituation].loc[goalieStats['HomeGoalie']][curSituation[0] + 'GSAA/60']
+    goalieStats[curSituation[0] + curSituation[1] + 'H'] = goalieStats[adjSituation].loc[goalieStats['AwayGoalie']][curSituation[0] + 'GSAA/60']
 
 # MINUTES DISTRIBUTION
 def calcTeamTOIBySituation(df,team,HorA):
@@ -110,11 +81,12 @@ PP_TOI_pred_H = (PP_TOI_H + PK_TOI_A)/2
 PP_TOI_pred_A = (PP_TOI_A + PK_TOI_H)/2
 EV_TOI_pred = 60 - PP_TOI_pred_H - PP_TOI_pred_A
 
-# Get TOI%_EV For all skaters - Doesn't yet take into account 4 on 4
-def TOIPercent(curSituation,curSituation_TOI_Pred,names):
+# Get TOI% For all skaters - Doesn't yet take into account 4 on 4
+def TOIPercent(curSituation,timeFactor,names):
     TOIPercent = pd.read_csv('input/2020_2021_TOIPercent_' + curSituation + '.csv')
+    TOIPercent['TOI%'] = TOIPercent['TOI%'].apply(lambda x: float(x[:-1]))
     # Get current Median % to fill players with no data
-    curMedian = np.nanmedian(TOIPercent['TOI'])
+    curMedian = np.nanmedian(TOIPercent['TOI%'])
     replaceNameList = [['Tim StÜtzle','Tim Stuetzle'],['Pierre-luc Dubois','Pierre-Luc Dubois'],['Dylan Demelo','Dylan DeMelo']]
     for replacei in replaceNameList:
         TOIPercent = TOIPercent.replace(replacei[0],replacei[1])
@@ -122,14 +94,20 @@ def TOIPercent(curSituation,curSituation_TOI_Pred,names):
     
     def getCurTOI(curName,TOIPercent,curMedian):
         try:
-            return float(TOIPercent.loc[curName]['TOI%'][:-1])
+            return TOIPercent.loc[curName]['TOI%']
         except:
             return curMedian
     
     player_TOIPerc = [getCurTOI(x,TOIPercent,curMedian) for x in names[0:18]]
-    player_TOIPerc = [x/np.sum(player_TOIPerc) for x in player_TOIPerc]
-
+    player_TOIPerc_F = [x/np.sum(player_TOIPerc[0:12]) for x in player_TOIPerc[0:12]]
+    player_TOIPerc_F = [(x * timeFactor*3) for x in player_TOIPerc_F]
+    player_TOIPerc_D = [x/np.sum(player_TOIPerc[12:18]) for x in player_TOIPerc[12:18]]
+    player_TOIPerc_D = [(x * timeFactor*2) for x in player_TOIPerc_D]
+    
+    player_TOIPerc = player_TOIPerc_F + player_TOIPerc_D
+    
     return player_TOIPerc
+
 
 SC_pred = dict()
 for curSituation in list(itertools.product(['HD','MD','LD'],['EV','PP','PK'],['H','A'])):
@@ -145,10 +123,16 @@ for curSituation in list(itertools.product(['HD','MD','LD'],['EV','PP','PK'],['H
             return 0
     
     SC_pred[curSituation[0] + curSituation[1] + curSituation[2]] = [getCurPred(x) for x in names[curSituation[2]][0:18]]
-    SC_pred[curSituation[0] + curSituation[1] + curSituation[2]] = int(np.sum([a * b for a, b in zip(player_TOIPerc, SC_pred[curSituation[0] + curSituation[1] + curSituation[2]])])*timeFactor)
+    SC_pred[curSituation[0] + curSituation[1] + curSituation[2]] = int((np.sum([a * b for a, b in zip(player_TOIPerc, SC_pred[curSituation[0] + curSituation[1] + curSituation[2]])])/np.sum(player_TOIPerc))*timeFactor)
+
 
 SC_prob = dict()
 for curSituation in list(itertools.product(['HD','MD','LD'],['EV','PP','PK'],['H','A'])):
+    if curSituation[1] == 'EV': timeFactor = EV_TOI_pred
+    elif (curSituation[1] == 'PP' and curSituation[2] == 'H') or (curSituation[1] == 'PK' and curSituation[2] == 'A'): timeFactor = PP_TOI_pred_H
+    elif (curSituation[1] == 'PP' and curSituation[2] == 'A') or (curSituation[1] == 'PK' and curSituation[2] == 'H'): timeFactor = PP_TOI_pred_A
+    
+    player_TOIPerc = TOIPercent(curSituation[1],timeFactor,names[curSituation[2]])
     def getCurProb(x):
         try:
             return playerStats[curSituation[1]].loc[x][curSituation[0] + '_SC_prob']
@@ -156,7 +140,7 @@ for curSituation in list(itertools.product(['HD','MD','LD'],['EV','PP','PK'],['H
             return 0
     
     SC_prob[curSituation[0] + curSituation[1] + curSituation[2]] = [getCurProb(x) for x in names[curSituation[2]][0:18]]
-    SC_prob[curSituation[0] + curSituation[1] + curSituation[2]] = np.mean(SC_prob[curSituation[0] + curSituation[1] + curSituation[2]])
+    SC_prob[curSituation[0] + curSituation[1] + curSituation[2]] = (np.sum([a * b for a, b in zip(player_TOIPerc, SC_prob[curSituation[0] + curSituation[1] + curSituation[2]])])/np.sum(player_TOIPerc))
 
 
 
@@ -164,14 +148,16 @@ for curSituation in list(itertools.product(['HD','MD','LD'],['EV','PP','PK'],['H
 
 
 '''
-# ADJUST SCORING CHANCE NUMBERS BASED ON SITUATIONAL MINUTES PREDICTIONS
-for curStat in SC_cnts.keys():
-    if 'EV' in curStat:
-        SC_cnts[curStat] = round(SC_cnts[curStat]*EV_TOI_pred)
-    elif ('PPH' in curStat) or ('PKA' in curStat):
-        SC_cnts[curStat] = round(SC_cnts[curStat]*PP_TOI_pred_H)
-    elif ('PPA' in curStat) or ('PKH' in curStat):
-        SC_cnts[curStat] = round(SC_cnts[curStat]*PP_TOI_pred_A)
+
+# ADJUST SCORING PROBABILITY BASED ON OPPOSING GOALIE SV% AND REST ADVANTAGE
+for curStat in SC_prob.keys():
+    SC_prob[curStat] = (SC_prob[curStat] + (1-float(goalieStats[curStat])))/2
+    # Adjust based on goal differential of rest advantage
+    if curStat.endswith('H'): # Home Team Stat
+        SC_prob[curStat] = SC_prob[curStat] + (SC_prob[curStat]*restAdj_Goals)
+    else:
+        SC_prob[curStat] = SC_prob[curStat] - (SC_prob[curStat]*restAdj_Goals)
+
 '''
 # SIMULATE OUTCOMES OF EACH SITUATION
 numSims = 10000
