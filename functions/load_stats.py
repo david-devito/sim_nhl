@@ -22,15 +22,23 @@ def loadStats():
         # Replace NAN values and stats for players with less than 30 minutes with the median of each column
         playerStats[curSituation] = replace_missing_data.replaceMissingValues(playerStats[curSituation])
         # Calculate New Columns
-        def dangerSCProb(x):
+        def dangerSCProb_off(x):
             try:
                 return x[dangeri + 'GF/60']/x[dangeri + 'CF/60']
             except:
                 return 0
+        def dangerSCProb_def(x):
+            try:
+                return x[dangeri + 'GA/60']/x[dangeri + 'CA/60']
+            except:
+                return 0
         for dangeri in ['HD','MD','LD']:
-            playerStats[curSituation][dangeri + '_SC_prob'] = playerStats[curSituation].apply(lambda x: dangerSCProb(x), axis=1)
-        for dangeri in ['HD','MD','LD']:
-            playerStats[curSituation][dangeri + '_SC_permin'] = playerStats[curSituation].apply(lambda x: x[dangeri + 'CF/60']/60, axis=1)
+            # Offensive Stats
+            playerStats[curSituation][dangeri + '_SC_prob_off'] = playerStats[curSituation].apply(lambda x: dangerSCProb_off(x), axis=1)
+            playerStats[curSituation][dangeri + '_SC_permin_off'] = playerStats[curSituation].apply(lambda x: x[dangeri + 'CF/60']/60, axis=1)
+            # Defensive Stats
+            playerStats[curSituation][dangeri + '_SC_prob_def'] = playerStats[curSituation].apply(lambda x: dangerSCProb_def(x), axis=1)
+            playerStats[curSituation][dangeri + '_SC_permin_def'] = playerStats[curSituation].apply(lambda x: x[dangeri + 'CA/60']/60, axis=1)
         
         
         
