@@ -191,6 +191,13 @@ print(f"{awayTeam} = {winProb_A}%")
 print(f"Tie = {winProb_T}%")
 print(f"{homeTeam} = {winProb_H}%")
 
+# Calculated Win Probabilities - Excluding Ties
+winProb_H_notie = round(winProb_H + (winProb_H/(winProb_H + winProb_A))*winProb_T,2)
+winProb_A_notie = round(winProb_A + (winProb_A/(winProb_H + winProb_A))*winProb_T,2)
+print('When No Tie Possible')
+print(f"{awayTeam} = {winProb_A_notie}%")
+print(f"{homeTeam} = {winProb_H_notie}%")
+
 
 
 
