@@ -25,12 +25,14 @@ import load_stats
 teamStats, playerStats, goalieStats = load_stats.loadStats()
 
 # INPUT
-homeTeam = 'Florida Panthers'
-awayTeam = 'New York Islanders'
-goalieStats['HomeGoalie'] = 'Sergei Bobrovsky'
-goalieStats['AwayGoalie'] = 'Ilya Sorokin'
-daysRest_H = 0
-daysRest_A = 0
+matchupsInput = pd.read_csv('matchups.csv')
+curMatchup = 8
+homeTeam = matchupsInput.loc[curMatchup]['HomeTeam']
+awayTeam = matchupsInput.loc[curMatchup]['AwayTeam']
+goalieStats['HomeGoalie'] = matchupsInput.loc[curMatchup]['HomeGoalie']
+goalieStats['AwayGoalie'] = matchupsInput.loc[curMatchup]['AwayGoalie']
+daysRest_H = matchupsInput.loc[curMatchup]['HomeDaysRest']
+daysRest_A = matchupsInput.loc[curMatchup]['AwayDaysRest']
 
 # HOME TEAM ADJUSTED WIN AND GOAL PROBABILITIES BASED ON REST ADVANTAGE
 restAdj_WP, restAdj_Goals = assorted_minor_functions.restAdvCalc(daysRest_H,daysRest_A)
