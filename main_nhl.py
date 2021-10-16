@@ -25,10 +25,10 @@ import load_stats
 teamStats, playerStats, goalieStats = load_stats.loadStats()
 
 # INPUT
-homeTeam = 'Colorado Avalanche'
-awayTeam = 'Chicago Blackhawks'
-goalieStats['HomeGoalie'] = 'Jack Campbell'
-goalieStats['AwayGoalie'] = 'Jake Allen'
+homeTeam = 'Florida Panthers'
+awayTeam = 'New York Islanders'
+goalieStats['HomeGoalie'] = 'Sergei Bobrovsky'
+goalieStats['AwayGoalie'] = 'Ilya Sorokin'
 daysRest_H = 0
 daysRest_A = 0
 
@@ -158,11 +158,18 @@ for curSituation in list(itertools.product(['HD','MD','LD'],['EV','PP','PK'])):
 
 
 
+# ADJUST SCORING PROBABILITY BASED ON OPPOSING GOALIE SV%
+for curStat in SC_prob_compiled.keys():
+    for dangeri in ['HD','MD','LD']:
+        # Subtraction in following equation, because if goalie stat if below average you'd increase scoring probability
+        if (dangeri in curStat) and (curStat.endswith('H')):
+            SC_prob_compiled[curStat] = SC_prob_compiled[curStat] - (goalieStats['EV'].loc[goalieStats['AwayGoalie']][dangeri + 'SV%']*SC_prob_compiled[curStat])
+        elif (dangeri in curStat) and (curStat.endswith('A')):
+            SC_prob_compiled[curStat] = SC_prob_compiled[curStat] - (goalieStats['EV'].loc[goalieStats['HomeGoalie']][dangeri + 'SV%']*SC_prob_compiled[curStat])
 
 
 # ADJUST SCORING PROBABILITY BASED ON OPPOSING GOALIE SV% AND REST ADVANTAGE
 for curStat in SC_prob_compiled.keys():
-    #SC_prob_compiled[curStat] = (SC_prob_compiled[curStat] + (1-float(goalieStats[curStat])))/2
     # Adjust based on goal differential of rest advantage
     if curStat.endswith('H'): # Home Team Stat
         SC_prob_compiled[curStat] = SC_prob_compiled[curStat] + (SC_prob_compiled[curStat]*restAdj_Goals)
