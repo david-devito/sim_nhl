@@ -1,5 +1,8 @@
 
 import itertools
+import requests
+from bs4 import BeautifulSoup
+import re
 
 # CALCULATE HOME TEAM REST ADVANTAGE
 def restAdvCalc(daysRest_H,daysRest_A):
@@ -17,6 +20,22 @@ def restAdvCalc(daysRest_H,daysRest_A):
     restAdj_Goals = restDiff_Goals[restDiff + 3] # Add 3 to get proper position in restDiff_WP Array
     
     return restAdj_WP,restAdj_Goals
+
+
+def getLineup(teamName):
+    # Scrape team line combos from DFO
+    url = "https://www.dailyfaceoff.com/teams/" + teamName + "/line-combinations/"
+    headers = {'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_10_1) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/39.0.2171.95 Safari/537.36'}
+    r = requests.get(url, headers=headers)
+    soup = BeautifulSoup(r.content, "lxml")
+    name_data = soup.find_all("a", {"class": "player-link"})
+    # Create list of player names
+    names = []
+    for i in range(0,len(name_data)): names.append(name_data[i].img["alt"])
+    replaceNames = {'Tim Stützle':'Tim Stuetzle', 'Pierre-Édouard Bellemare':'Pierre-Edouard Bellemare'}
+    if teamName == 'New York Islanders': replaceNames['Sebastian Aho'] = 'Sebastian Aho_NYI'
+    names = [replaceNames[x] if x in replaceNames.keys() else x for x in names]
+    return names
 
 
 
@@ -39,4 +58,24 @@ def printProjLineups(homeTeam,awayTeam,names):
         printLine(teamPlayer[0],teamPlayer[1],names)
         if teamPlayer[1] == numArray[-1]: print()
     
+
+def kellyCalculation(matchupsInput,curMatchup,winProb_H_notie,winProb_A_notie,awayTeam,homeTeam):
+    homeOdds = matchupsInput.loc[curMatchup]['HomeOdds']
+    awayOdds = matchupsInput.loc[curMatchup]['AwayOdds']
+    kellyMultiplier = 1
+    # Convert odds to Decimal Odds
+    def convertOdds(odds):
+        if odds < 0: odds = 1-(100/odds)
+        else: odds = (odds/100)+1
+        return odds
     
+    homeOdds = convertOdds(homeOdds)
+    awayOdds = convertOdds(awayOdds)
+    
+    kellyValue_H = ((homeOdds - 1) * (winProb_H_notie/100) - (1 - (winProb_H_notie/100))) / (homeOdds - 1) * kellyMultiplier
+    kellyValue_A = ((awayOdds - 1) * (winProb_A_notie/100) - (1 - (winProb_A_notie/100))) / (awayOdds - 1) * kellyMultiplier
+    
+    print('Kelly Values')
+    print(f"{awayTeam} = {round(kellyValue_A*100,2)}%")
+    print(f"{homeTeam} = {round(kellyValue_H*100,2)}%")
+    print()

@@ -1,5 +1,3 @@
-# USE GSAA/60 FOR GOALIE STATS
-
 # Add paths of additional scripts
 import sys
 sys.path.append('./functions')
@@ -26,7 +24,7 @@ teamStats, playerStats, goalieStats = load_stats.loadStats()
 
 # INPUT
 matchupsInput = pd.read_csv('matchups.csv')
-curMatchup = 0
+curMatchup = 1
 homeTeam = matchupsInput.loc[curMatchup]['HomeTeam']
 awayTeam = matchupsInput.loc[curMatchup]['AwayTeam']
 goalieStats['HomeGoalie'] = matchupsInput.loc[curMatchup]['HomeGoalie']
@@ -39,24 +37,9 @@ restAdj_WP, restAdj_Goals = assorted_minor_functions.restAdvCalc(daysRest_H,days
 
 
 ## GET LINEUP INFORMATION
-def getLineup(teamName):
-    # Scrape team line combos from DFO
-    url = "https://www.dailyfaceoff.com/teams/" + teamName + "/line-combinations/"
-    headers = {'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_10_1) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/39.0.2171.95 Safari/537.36'}
-    r = requests.get(url, headers=headers)
-    soup = BeautifulSoup(r.content, "lxml")
-    name_data = soup.find_all("a", {"class": "player-link"})
-    # Create list of player names
-    names = []
-    for i in range(0,len(name_data)): names.append(name_data[i].img["alt"])
-    replaceNames = {'Tim Stützle':'Tim Stuetzle', 'Pierre-Édouard Bellemare':'Pierre-Edouard Bellemare'}
-    if teamName == 'New York Islanders': replaceNames['Sebastian Aho'] = 'Sebastian Aho_NYI'
-    names = [replaceNames[x] if x in replaceNames.keys() else x for x in names]
-    return names
-
 names = dict()
-names['H'] = getLineup(homeTeam.replace(' ','-').lower())
-names['A'] = getLineup(awayTeam.replace(' ','-').lower())
+names['H'] = assorted_minor_functions.getLineup(homeTeam.replace(' ','-').lower())
+names['A'] = assorted_minor_functions.getLineup(awayTeam.replace(' ','-').lower())
 
 
 # Assign Stats of Current Goalies - Mark Home Goalie as Away, and Away goalie as Home to correspond to ooposing skaters
@@ -65,8 +48,16 @@ for curSituation in list(itertools.product(['HD','MD','LD'],['EV','PP','PK'])):
     if curSituation[1] == 'PP': adjSituation = 'PK'
     elif curSituation[1] == 'PK': adjSituation = 'PP'
     else: adjSituation = 'EV'
-    goalieStats[curSituation[0] + curSituation[1] + 'A'] = goalieStats[adjSituation].loc[goalieStats['HomeGoalie']][curSituation[0] + 'GSAA/60']
-    goalieStats[curSituation[0] + curSituation[1] + 'H'] = goalieStats[adjSituation].loc[goalieStats['AwayGoalie']][curSituation[0] + 'GSAA/60']
+    # Get CurMedian of Stat to fill Goalies who haven't played yet
+    curMedian = np.median(goalieStats[adjSituation][curSituation[0] + 'GSAA/60'])
+    try:
+        goalieStats[curSituation[0] + curSituation[1] + 'A'] = goalieStats[adjSituation].loc[goalieStats['HomeGoalie']][curSituation[0] + 'GSAA/60']
+    except:
+        goalieStats[curSituation[0] + curSituation[1] + 'A'] = curMedian
+    try:
+        goalieStats[curSituation[0] + curSituation[1] + 'H'] = goalieStats[adjSituation].loc[goalieStats['AwayGoalie']][curSituation[0] + 'GSAA/60']
+    except:
+        goalieStats[curSituation[0] + curSituation[1] + 'H'] = curMedian
 
 # MINUTES DISTRIBUTION
 def calcTeamTOIBySituation(df,team,HorA):
@@ -181,7 +172,7 @@ for curStat in SC_prob_compiled.keys():
 
 
 # SIMULATE OUTCOMES OF EACH SITUATION
-numSims = 10000
+numSims = 20000
 compiled_outcomes_H, compiled_outcomes_A = sog_outcome_simulator.simulate_sog(numSims,SC_pred_compiled,SC_prob_compiled)
 
 # Plot Predicted Distribution of Goals for Each Team
@@ -215,25 +206,7 @@ print()
 
 
 # Kelly Criterion Formula
-homeOdds = matchupsInput.loc[curMatchup]['HomeOdds']
-awayOdds = matchupsInput.loc[curMatchup]['AwayOdds']
-kellyMultiplier = 1
-# Convert odds to Decimal Odds
-def convertOdds(odds):
-    if odds < 0: odds = 1-(100/odds)
-    else: odds = (odds/100)+1
-    return odds
-
-homeOdds = convertOdds(homeOdds)
-awayOdds = convertOdds(awayOdds)
-
-kellyValue_H = ((homeOdds - 1) * (winProb_H_notie/100) - (1 - (winProb_H_notie/100))) / (homeOdds - 1) * kellyMultiplier
-kellyValue_A = ((awayOdds - 1) * (winProb_A_notie/100) - (1 - (winProb_A_notie/100))) / (awayOdds - 1) * kellyMultiplier
-
-print('Kelly Values')
-print(f"{awayTeam} = {round(kellyValue_A*100,2)}%")
-print(f"{homeTeam} = {round(kellyValue_H*100,2)}%")
-print()
+assorted_minor_functions.kellyCalculation(matchupsInput,curMatchup,winProb_H_notie,winProb_A_notie,awayTeam,homeTeam)
 
 #PRINT LINEUPS
 
