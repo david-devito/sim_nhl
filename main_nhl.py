@@ -26,7 +26,7 @@ teamStats, playerStats, goalieStats = load_stats.loadStats()
 
 # INPUT
 matchupsInput = pd.read_csv('matchups.csv')
-curMatchup = 8
+curMatchup = 0
 homeTeam = matchupsInput.loc[curMatchup]['HomeTeam']
 awayTeam = matchupsInput.loc[curMatchup]['AwayTeam']
 goalieStats['HomeGoalie'] = matchupsInput.loc[curMatchup]['HomeGoalie']
@@ -50,6 +50,7 @@ def getLineup(teamName):
     names = []
     for i in range(0,len(name_data)): names.append(name_data[i].img["alt"])
     replaceNames = {'Tim Stützle':'Tim Stuetzle', 'Pierre-Édouard Bellemare':'Pierre-Edouard Bellemare'}
+    if teamName == 'New York Islanders': replaceNames['Sebastian Aho'] = 'Sebastian Aho_NYI'
     names = [replaceNames[x] if x in replaceNames.keys() else x for x in names]
     return names
 
@@ -196,9 +197,11 @@ winProb_T = round((len([x for x in winProb if x == 0])/numSims)*100,2)
 #winProb_H = winProb_H + restAdj_WP
 #winProb_A = winProb_A - restAdj_WP
 
+print()
 print(f"{awayTeam} = {winProb_A}%")
 print(f"Tie = {winProb_T}%")
 print(f"{homeTeam} = {winProb_H}%")
+print()
 
 # Calculated Win Probabilities - Excluding Ties
 winProb_H_notie = round(winProb_H + (winProb_H/(winProb_H + winProb_A))*winProb_T,2)
@@ -206,7 +209,35 @@ winProb_A_notie = round(winProb_A + (winProb_A/(winProb_H + winProb_A))*winProb_
 print('When No Tie Possible')
 print(f"{awayTeam} = {winProb_A_notie}%")
 print(f"{homeTeam} = {winProb_H_notie}%")
+print()
 
+
+
+
+# Kelly Criterion Formula
+homeOdds = matchupsInput.loc[curMatchup]['HomeOdds']
+awayOdds = matchupsInput.loc[curMatchup]['AwayOdds']
+kellyMultiplier = 1
+# Convert odds to Decimal Odds
+def convertOdds(odds):
+    if odds < 0: odds = 1-(100/odds)
+    else: odds = (odds/100)+1
+    return odds
+
+homeOdds = convertOdds(homeOdds)
+awayOdds = convertOdds(awayOdds)
+
+kellyValue_H = ((homeOdds - 1) * (winProb_H_notie/100) - (1 - (winProb_H_notie/100))) / (homeOdds - 1) * kellyMultiplier
+kellyValue_A = ((awayOdds - 1) * (winProb_A_notie/100) - (1 - (winProb_A_notie/100))) / (awayOdds - 1) * kellyMultiplier
+
+print('Kelly Values')
+print(f"{awayTeam} = {round(kellyValue_A*100,2)}%")
+print(f"{homeTeam} = {round(kellyValue_H*100,2)}%")
+print()
+
+#PRINT LINEUPS
+
+assorted_minor_functions.printProjLineups(homeTeam,awayTeam,names)
 
 
 

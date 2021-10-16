@@ -20,7 +20,7 @@ def loadStats():
     
     playerStats = dict()
     for curSituation in ['EV','PP','PK']:
-        playerStats[curSituation] = pd.read_csv('input/2020_2021_PlayerStats_Rates_OnIce_' + curSituation + '.csv').set_index('Player',drop=True)
+        playerStats[curSituation] = pd.read_csv('input/2020_2021_PlayerStats_Rates_OnIce_' + curSituation + '.csv',encoding= 'unicode_escape').set_index('Player',drop=True)
         # Replace NAN values and stats for players with less than 30 minutes with the median of each column
         playerStats[curSituation] = replace_missing_data.replaceMissingValues(playerStats[curSituation])
         # Calculate New Columns
