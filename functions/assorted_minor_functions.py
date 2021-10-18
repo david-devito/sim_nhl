@@ -38,9 +38,6 @@ def getLineup(teamName):
     return names
 
 
-
-
-
 def printProjLineups(homeTeam,awayTeam,names):
     
     def printLine(team,numArray,names):
