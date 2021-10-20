@@ -1,3 +1,8 @@
+## SOME OF THE RELATIVE STATS ARE JUST TOO HIGH SO THE PROBABILITY NUMBERS END UP TOO HIGH
+
+
+
+
 # Add paths of additional scripts
 import sys
 sys.path.append('./functions')
@@ -22,7 +27,7 @@ import assign_stats
 # Replace NAN values or values for players with fewer than 30 mins played
 
 teamStats, playerStats, goalieStats, playerStats_relative = load_stats.loadStats()
-'''
+
 # INPUT
 matchupsInput = pd.read_csv('matchups.csv')
 curMatchup = 1
@@ -90,7 +95,7 @@ def TOIPercent(curSituation,timeFactor,names):
     
     return player_TOIPerc
 
-
+'''
 SC_pred = dict()
 for curSituation in list(itertools.product(['HD','MD','LD'],['EV','PP','PK'],['H','A'],['off','def'])):
     if curSituation[1] == 'EV': timeFactor = EV_TOI_pred
@@ -99,28 +104,25 @@ for curSituation in list(itertools.product(['HD','MD','LD'],['EV','PP','PK'],['H
     
     player_TOIPerc = TOIPercent(curSituation[1],timeFactor,names[curSituation[2]])
     def getCurPred(x,OffOrDef):
+        if OffOrDef == 'off': curStat = 'CF'
+        elif OffOrDef == 'def': curStat = 'CA'
         try:
-            return playerStats[curSituation[1]].loc[x][curSituation[0] + '_SC_permin_' + OffOrDef]
+            return playerStats_relative[curSituation[1]].loc[x][curSituation[0] + curStat + 'adjpermin']
         except:
-            return np.median(playerStats[curSituation[1]][curSituation[0] + '_SC_permin_' + OffOrDef])
+            return np.median(playerStats_relative[curSituation[1]][curSituation[0] + curStat + 'adjpermin'])
     
     SC_pred[curSituation[0] + curSituation[1] + curSituation[2] + curSituation[3]] = [getCurPred(x,curSituation[3]) for x in names[curSituation[2]][0:18]]
     SC_pred[curSituation[0] + curSituation[1] + curSituation[2] + curSituation[3]] = int((np.sum([a * b for a, b in zip(player_TOIPerc, SC_pred[curSituation[0] + curSituation[1] + curSituation[2] + curSituation[3]])])/np.sum(player_TOIPerc))*timeFactor)
+
 
 SC_pred_compiled = dict()
 for curSituation in list(itertools.product(['HD','MD','LD'],['EV','PP','PK'])):
     SC_pred_compiled[curSituation[0] + curSituation[1] + 'H'] = int((SC_pred[curSituation[0] + curSituation[1] + 'Hoff'] + SC_pred[curSituation[0] + curSituation[1] + 'Adef'])/2)
     SC_pred_compiled[curSituation[0] + curSituation[1] + 'A'] = int((SC_pred[curSituation[0] + curSituation[1] + 'Aoff'] + SC_pred[curSituation[0] + curSituation[1] + 'Hdef'])/2)
 
+'''
 
-# CALCULATE BASELINE SCORING CHANCE NUMBERS
-baseline_SC = dict()
-for curSituation in list(itertools.product(['HD','MD','LD'],['EV','PP','PK'],['H','A'],['off','def'])):
-    curBaselineDF = pd.read_csv('input/2019_2021_TeamStats_Calcpermin_' + curSituation[1] + '.csv',encoding= 'unicode_escape').set_index('Team',drop=True)
-    if curSituation[3] == 'off':
-        baseline_SC[curSituation[0] + curSituation[1] + curSituation[2] + curSituation[3]] = curBaselineDF.loc['SUM'][curSituation[0] + 'CFpermin']
-    elif curSituation[3] == 'def':
-        baseline_SC[curSituation[0] + curSituation[1] + curSituation[2] + curSituation[3]] = curBaselineDF.loc['SUM'][curSituation[0] + 'CApermin']
+
 
 # CALCULATE PREDICTED RELATIVE SCORING CHANCES
 SC_pred_relative = dict()
@@ -158,7 +160,7 @@ for curSituation in list(itertools.product(['HD','MD','LD'],['EV','PP','PK'])):
 
 
 
-
+'''
 SC_prob = dict()
 for curSituation in list(itertools.product(['HD','MD','LD'],['EV','PP','PK'],['H','A'],['off','def'])):
     if curSituation[1] == 'EV': timeFactor = EV_TOI_pred
@@ -179,9 +181,36 @@ SC_prob_compiled = dict()
 for curSituation in list(itertools.product(['HD','MD','LD'],['EV','PP','PK'])):
     SC_prob_compiled[curSituation[0] + curSituation[1] + 'H'] = (SC_prob[curSituation[0] + curSituation[1] + 'Hoff'] + SC_prob[curSituation[0] + curSituation[1] + 'Adef'])/2
     SC_prob_compiled[curSituation[0] + curSituation[1] + 'A'] = (SC_prob[curSituation[0] + curSituation[1] + 'Aoff'] + SC_prob[curSituation[0] + curSituation[1] + 'Hdef'])/2
+'''
+
+
+SC_prob = dict()
+#for curSituation in list(itertools.product(['HD','MD','LD'],['EV','PP','PK'],['H','A'],['off','def'])):
+for curSituation in list(itertools.product(['LD'],['PP'],['H'],['off','def'])):
+    if curSituation[1] == 'EV': timeFactor = EV_TOI_pred
+    elif (curSituation[1] == 'PP' and curSituation[2] == 'H') or (curSituation[1] == 'PK' and curSituation[2] == 'A'): timeFactor = PP_TOI_pred_H
+    elif (curSituation[1] == 'PP' and curSituation[2] == 'A') or (curSituation[1] == 'PK' and curSituation[2] == 'H'): timeFactor = PP_TOI_pred_A
+    
+    player_TOIPerc = TOIPercent(curSituation[1],timeFactor,names[curSituation[2]])
+    def getCurProb(x,OffOrDef):
+        try:
+            return playerStats_relative[curSituation[1]].loc[x][curSituation[0] + '_SC_prob_' + OffOrDef]
+        except:
+            return np.median(playerStats_relative[curSituation[1]][curSituation[0] + '_SC_prob_' + OffOrDef])
+    
+    SC_prob[curSituation[0] + curSituation[1] + curSituation[2] + curSituation[3]] = [getCurProb(x,curSituation[3]) for x in names[curSituation[2]][0:18]]
+    #SC_prob[curSituation[0] + curSituation[1] + curSituation[2] + curSituation[3]] = (np.sum([a * b for a, b in zip(player_TOIPerc, SC_prob[curSituation[0] + curSituation[1] + curSituation[2] + curSituation[3]])])/np.sum(player_TOIPerc))
+
+#SC_prob_compiled = dict()
+#for curSituation in list(itertools.product(['HD','MD','LD'],['EV','PP','PK'])):
+#    SC_prob_compiled[curSituation[0] + curSituation[1] + 'H'] = (SC_prob[curSituation[0] + curSituation[1] + 'Hoff'] + SC_prob[curSituation[0] + curSituation[1] + 'Adef'])/2
+#    SC_prob_compiled[curSituation[0] + curSituation[1] + 'A'] = (SC_prob[curSituation[0] + curSituation[1] + 'Aoff'] + SC_prob[curSituation[0] + curSituation[1] + 'Hdef'])/2
 
 
 
+
+
+'''
 
 
 # ADJUST SCORING PROBABILITY BASED ON OPPOSING GOALIE SV%
