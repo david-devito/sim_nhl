@@ -7,13 +7,8 @@
 import sys
 sys.path.append('./functions')
 
-
-import requests
-from bs4 import BeautifulSoup
-import re
 import pandas as pd
 import numpy as np
-import matplotlib.pyplot as plt
 import itertools
 
 import assorted_plots
@@ -24,8 +19,7 @@ import assign_stats
 
 
 # LOAD STATISTICS FILES
-# Replace NAN values or values for players with fewer than 30 mins played
-
+print('LOAD STATS')
 teamStats, goalieStats, playerStats_relative = load_stats.loadStats()
 
 # INPUT
@@ -41,18 +35,14 @@ daysRest_A = matchupsInput.loc[curMatchup]['AwayDaysRest']
 # HOME TEAM ADJUSTED WIN AND GOAL PROBABILITIES BASED ON REST ADVANTAGE
 restAdj_WP, restAdj_Goals = assorted_minor_functions.restAdvCalc(daysRest_H,daysRest_A)
 
-
 ## GET LINEUP INFORMATION
 names = dict()
 names['H'] = assorted_minor_functions.getLineup(homeTeam.replace(' ','-').lower())
 names['A'] = assorted_minor_functions.getLineup(awayTeam.replace(' ','-').lower())
 
 
-# Assign Stats of Current Goalies - Mark Home Goalie as Away, and Away goalie as Home to correspond to ooposing skaters
-goalieStats = assign_stats.assignGoalieStats(goalieStats)
-
-
-# MINUTES DISTRIBUTION
+# MINUTES DISTRIBUTION BY TEAM
+print('MINUTES CALC')
 def calcTeamTOIBySituation(df,team,HorA):
     # Situational TOI Ratios - Needs to be ratios as OT causes TOI to go over 60 mins per game
     total_TOI = df['EV_cnts' + HorA].loc[team]['TOI'] + df['PP_cnts' + HorA].loc[team]['TOI'] + df['PK_cnts' + HorA].loc[team]['TOI']
@@ -71,10 +61,11 @@ EV_TOI_pred = 60 - PP_TOI_pred_H - PP_TOI_pred_A
 # Get TOI% For all skaters - Doesn't yet take into account 4 on 4
 def TOIPercent(curSituation,timeFactor,names):
     TOIPercent = pd.read_csv('input/2020_2021_TOIPercent_' + curSituation + '.csv')
+    # Remove % sign from values
     TOIPercent['TOI%'] = TOIPercent['TOI%'].apply(lambda x: float(x[:-1]))
     # Get current Median % to fill players with no data
     curMedian = np.nanmedian(TOIPercent['TOI%'])
-    replaceNameList = [['Tim StÜtzle','Tim Stuetzle'],['Pierre-luc Dubois','Pierre-Luc Dubois'],['Dylan Demelo','Dylan DeMelo']]
+    replaceNameList = [['Tim StÜtzle','Tim Stuetzle'],['Pierre-luc Dubois','Pierre-Luc Dubois'],['Dylan Demelo','Dylan DeMelo'],['Mitch Marner','Mitchell Marner']]
     for replacei in replaceNameList:
         TOIPercent = TOIPercent.replace(replacei[0],replacei[1])
     TOIPercent.set_index('Player',inplace=True)
@@ -98,6 +89,7 @@ def TOIPercent(curSituation,timeFactor,names):
 
 
 # CALCULATE PREDICTED RELATIVE SCORING CHANCES
+print('SC_PRED')
 SC_pred_relative = dict()
 for curSituation in list(itertools.product(['HD','MD','LD'],['EV','PP','PK'],['H','A'],['CF','CA'])):
     if curSituation[1] == 'EV': timeFactor = EV_TOI_pred
@@ -109,6 +101,7 @@ for curSituation in list(itertools.product(['HD','MD','LD'],['EV','PP','PK'],['H
         try:
             return playerStats_relative[curSituation[1]].loc[x][curSituation[0] + OffOrDef + 'adjpermin']
         except:
+            print(x)
             return np.median(playerStats_relative[curSituation[1]][curSituation[0] + OffOrDef + 'adjpermin'])
     
     SC_pred_relative[curSituation[0] + curSituation[1] + curSituation[2] + curSituation[3]] = [getCurPred(x,curSituation[3]) for x in names[curSituation[2]][0:18]]
@@ -127,9 +120,7 @@ for curSituation in list(itertools.product(['HD','MD','LD'],['EV','PP','PK'])):
 
 
 
-
-
-
+print('SC_PROB')
 SC_prob = dict()
 for curSituation in list(itertools.product(['HD','MD','LD'],['EV','PP','PK'],['H','A'],['off','def'])):
     if curSituation[1] == 'EV': timeFactor = EV_TOI_pred
@@ -161,6 +152,9 @@ for curSituation in list(itertools.product(['HD','MD','LD'],['EV','PP','PK'])):
 
 
 # ADJUST SCORING PROBABILITY BASED ON OPPOSING GOALIE SV%
+# Assign Stats of Current Goalies
+goalieStats = assign_stats.assignGoalieStats(goalieStats)
+
 def adjByGoalieStat(curStat,dangeri,goalieStats,SC_prob_compiled,whichGoalie):
     try:
         SC_prob_compiled[curStat] = SC_prob_compiled[curStat] - (goalieStats['EV'].loc[goalieStats['AwayGoalie']][dangeri + 'SV%']*SC_prob_compiled[curStat])
@@ -185,6 +179,7 @@ for curStat in SC_prob_compiled.keys():
 
 
 # SIMULATE OUTCOMES OF EACH SITUATION
+print('SIMULATE')
 numSims = 20000
 compiled_outcomes_H, compiled_outcomes_A = sog_outcome_simulator.simulate_sog(numSims,SC_pred_compiled_relative,SC_prob_compiled)
 
@@ -222,7 +217,6 @@ print()
 assorted_minor_functions.kellyCalculation(matchupsInput,curMatchup,winProb_H_notie,winProb_A_notie,awayTeam,homeTeam)
 
 #PRINT LINEUPS
-
 assorted_minor_functions.printProjLineups(homeTeam,awayTeam,names)
 
 

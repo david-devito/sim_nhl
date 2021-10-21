@@ -58,7 +58,22 @@ def loadStats():
             
             playerStats_relative[curSituation][dangeri + '_SC_prob_off'] = playerStats_relative[curSituation].apply(lambda x: dangerSCProb_off_relative(x), axis=1)
             playerStats_relative[curSituation][dangeri + '_SC_prob_def'] = playerStats_relative[curSituation].apply(lambda x: dangerSCProb_def_relative(x), axis=1)
-            
+    
+    # Correct Tim Stuetzle's name. Accent appears different in different dataframes
+    def replaceNames_Tim(df,orig,new):
+        as_list = df.index.tolist()
+        idx = as_list.index(orig)
+        as_list[idx] = new
+        df.index = as_list
+        return df
+
+    playerStats_relative['EV'] = replaceNames_Tim(playerStats_relative['EV'],'Tim St\x92_tzle','Tim Stuetzle')
+    playerStats_relative['PP'] = replaceNames_Tim(playerStats_relative['PP'],'Tim StÌ_tzle','Tim Stuetzle')
+    playerStats_relative['PK'] = replaceNames_Tim(playerStats_relative['PK'],'Tim StÃ¼tzle','Tim Stuetzle')
+    playerStats_relative['EV'] = replaceNames_Tim(playerStats_relative['EV'],'Alexis Lafreni\x92åre','Alexis Lafreniere')
+    playerStats_relative['PP'] = replaceNames_Tim(playerStats_relative['PP'],'Alexis LafreniÌ¬re','Alexis Lafreniere')
+    playerStats_relative['PK'] = replaceNames_Tim(playerStats_relative['PK'],'Alexis LafreniÃ¨re','Alexis Lafreniere')
+        
         
         
     goalieStats = dict()

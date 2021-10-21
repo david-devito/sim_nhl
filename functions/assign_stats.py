@@ -4,6 +4,7 @@ import numpy as np
 
 
 def assignGoalieStats(goalieStats):
+    #Mark Home Goalie as Away, and Away goalie as Home to correspond to ooposing skaters
     for curSituation in list(itertools.product(['HD','MD','LD'],['EV','PP','PK'])):
         #Adjust PP/PK for fact that on PK when facing opponent's PP, and vice versa
         adjSituationdict = {'EV':'EV','PP':'PK','PK':'PP'}

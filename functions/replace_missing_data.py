@@ -8,8 +8,8 @@ def replaceMissingValues(curDF):
     
     for curCol in [x for x in curDF.columns if x not in ['Team','Position','TOI']]:
         curDF[curCol] = curDF[curCol].astype(float)
-        curMedian = np.nanmedian(curDF[curDF['TOI'] >= 30][curCol])
-        curDF[curCol] = curDF.apply(lambda x: curMedian if ((x['TOI'] < 30) or np.isnan(x[curCol])) else x[curCol], axis=1)
+        curMedian = np.nanmedian(curDF[curDF['TOI'] >= 60][curCol])
+        curDF[curCol] = curDF.apply(lambda x: curMedian if ((x['TOI'] < 60) or np.isnan(x[curCol])) else x[curCol], axis=1)
         
     return curDF
 
