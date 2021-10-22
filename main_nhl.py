@@ -24,7 +24,7 @@ teamStats, goalieStats, playerStats_relative = load_stats.loadStats()
 
 # INPUT
 matchupsInput = pd.read_csv('matchups.csv')
-curMatchup = 9
+curMatchup = 0
 homeTeam = matchupsInput.loc[curMatchup]['HomeTeam']
 awayTeam = matchupsInput.loc[curMatchup]['AwayTeam']
 goalieStats['HomeGoalie'] = matchupsInput.loc[curMatchup]['HomeGoalie']
@@ -153,21 +153,20 @@ for curSituation in list(itertools.product(['HD','MD','LD'],['EV','PP','PK'])):
 
 # ADJUST SCORING PROBABILITY BASED ON OPPOSING GOALIE SV%
 # Assign Stats of Current Goalies
-goalieStats = assign_stats.assignGoalieStats(goalieStats)
+#goalieStats = assign_stats.assignGoalieStats(goalieStats)
 
-def adjByGoalieStat(curStat,dangeri,goalieStats,SC_prob_compiled,whichGoalie):
+def adjByGoalieStat(curStat,dangeri,goalieStats,SC_prob_compiled,whichGoalie,curSituation):
     try:
-        SC_prob_compiled[curStat] = SC_prob_compiled[curStat] - (goalieStats['EV'].loc[goalieStats['AwayGoalie']][dangeri + 'SV%']*SC_prob_compiled[curStat])
+        SC_prob_compiled[curStat] = SC_prob_compiled[curStat] - (goalieStats[curSituation].loc[goalieStats[whichGoalie]][dangeri + 'SV%']*SC_prob_compiled[curStat])
     except: # If Goalie has not played then use median of stat
-        SC_prob_compiled[curStat] = SC_prob_compiled[curStat] - ((np.median(goalieStats['EV'][dangeri + 'SV%']))*SC_prob_compiled[curStat])
+        SC_prob_compiled[curStat] = SC_prob_compiled[curStat] - ((np.median(goalieStats[curSituation][dangeri + 'SV%']))*SC_prob_compiled[curStat])
+        print('error')
     
 for curStat in SC_prob_compiled.keys():
-    for dangeri in ['HD','MD','LD']:
-        # Subtraction in following equation, because if goalie stat if below average you'd increase scoring probability
-        if (dangeri in curStat) and (curStat.endswith('H')):
-            adjByGoalieStat(curStat,dangeri,goalieStats,SC_prob_compiled,'AwayGoalie')
-        elif (dangeri in curStat) and (curStat.endswith('A')):
-            adjByGoalieStat(curStat,dangeri,goalieStats,SC_prob_compiled,'HomeGoalie')
+    # Subtraction in following equation, because if goalie stat if below average you'd increase scoring probability
+    if curStat.endswith('H'):whichGoalie = 'AwayGoalie'
+    elif curStat.endswith('A'):whichGoalie = 'HomeGoalie'
+    adjByGoalieStat(curStat,curStat[:2],goalieStats,SC_prob_compiled,whichGoalie,curStat[2:4])
             
 # ADJUST SCORING PROBABILITY BASED ON REST ADVANTAGE
 for curStat in SC_prob_compiled.keys():
