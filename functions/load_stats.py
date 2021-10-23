@@ -67,11 +67,11 @@ def loadStats():
         df.index = as_list
         return df
 
-    playerStats_relative['EV'] = replaceNames_Tim(playerStats_relative['EV'],'Tim St\x92_tzle','Tim Stuetzle')
-    playerStats_relative['PP'] = replaceNames_Tim(playerStats_relative['PP'],'Tim StÌ_tzle','Tim Stuetzle')
+    playerStats_relative['EV'] = replaceNames_Tim(playerStats_relative['EV'],'Tim StÃ¼tzle','Tim Stuetzle')
+    playerStats_relative['PP'] = replaceNames_Tim(playerStats_relative['PP'],'Tim StÃ¼tzle','Tim Stuetzle')
     playerStats_relative['PK'] = replaceNames_Tim(playerStats_relative['PK'],'Tim StÃ¼tzle','Tim Stuetzle')
-    playerStats_relative['EV'] = replaceNames_Tim(playerStats_relative['EV'],'Alexis Lafreni\x92åre','Alexis Lafreniere')
-    playerStats_relative['PP'] = replaceNames_Tim(playerStats_relative['PP'],'Alexis LafreniÌ¬re','Alexis Lafreniere')
+    playerStats_relative['EV'] = replaceNames_Tim(playerStats_relative['EV'],'Alexis LafreniÃ¨re','Alexis Lafreniere')
+    playerStats_relative['PP'] = replaceNames_Tim(playerStats_relative['PP'],'Alexis LafreniÃ¨re','Alexis Lafreniere')
     playerStats_relative['PK'] = replaceNames_Tim(playerStats_relative['PK'],'Alexis LafreniÃ¨re','Alexis Lafreniere')
         
         

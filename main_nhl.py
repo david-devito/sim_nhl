@@ -24,7 +24,7 @@ teamStats, goalieStats, playerStats_relative = load_stats.loadStats()
 
 # INPUT
 matchupsInput = pd.read_csv('matchups.csv')
-curMatchup = 0
+curMatchup = 1
 homeTeam = matchupsInput.loc[curMatchup]['HomeTeam']
 awayTeam = matchupsInput.loc[curMatchup]['AwayTeam']
 goalieStats['HomeGoalie'] = matchupsInput.loc[curMatchup]['HomeGoalie']
@@ -160,7 +160,7 @@ def adjByGoalieStat(curStat,dangeri,goalieStats,SC_prob_compiled,whichGoalie,cur
         SC_prob_compiled[curStat] = SC_prob_compiled[curStat] - (goalieStats[curSituation].loc[goalieStats[whichGoalie]][dangeri + 'SV%']*SC_prob_compiled[curStat])
     except: # If Goalie has not played then use median of stat
         SC_prob_compiled[curStat] = SC_prob_compiled[curStat] - ((np.median(goalieStats[curSituation][dangeri + 'SV%']))*SC_prob_compiled[curStat])
-        print('error')
+        print('Error: ' + whichGoalie)
     
 for curStat in SC_prob_compiled.keys():
     # Subtraction in following equation, because if goalie stat if below average you'd increase scoring probability
