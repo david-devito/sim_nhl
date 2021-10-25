@@ -1,6 +1,6 @@
 ## SOME OF THE RELATIVE STATS ARE JUST TOO HIGH SO THE PROBABILITY NUMBERS END UP TOO HIGH
 
-
+## BASELINE STATS NEED TO BE HOME AND AWAY
 
 
 # Add paths of additional scripts
@@ -24,13 +24,15 @@ teamStats, goalieStats, playerStats_relative = load_stats.loadStats()
 
 # INPUT
 matchupsInput = pd.read_csv('matchups.csv')
-curMatchup = 1
+curMatchup = 5
 homeTeam = matchupsInput.loc[curMatchup]['HomeTeam']
 awayTeam = matchupsInput.loc[curMatchup]['AwayTeam']
 goalieStats['HomeGoalie'] = matchupsInput.loc[curMatchup]['HomeGoalie']
 goalieStats['AwayGoalie'] = matchupsInput.loc[curMatchup]['AwayGoalie']
-daysRest_H = matchupsInput.loc[curMatchup]['HomeDaysRest']
-daysRest_A = matchupsInput.loc[curMatchup]['AwayDaysRest']
+daysRest_H = int(matchupsInput.loc[curMatchup]['HomeDaysRest'])
+daysRest_A = int(matchupsInput.loc[curMatchup]['AwayDaysRest'])
+gameOverUnder = matchupsInput.loc[curMatchup]['OverUnderVal']
+
 
 # HOME TEAM ADJUSTED WIN AND GOAL PROBABILITIES BASED ON REST ADVANTAGE
 restAdj_WP, restAdj_Goals = assorted_minor_functions.restAdvCalc(daysRest_H,daysRest_A)
@@ -64,7 +66,7 @@ def TOIPercent(curSituation,timeFactor,names):
     # Remove % sign from values
     TOIPercent['TOI%'] = TOIPercent['TOI%'].apply(lambda x: float(x[:-1]))
     # Get current Median % to fill players with no data
-    curMedian = np.nanmedian(TOIPercent['TOI%'])
+    curMedian = np.nanmedian(TOIPercent['TOI%']) - np.std(TOIPercent['TOI%'])
     replaceNameList = [['Tim StÜtzle','Tim Stuetzle'],['Pierre-luc Dubois','Pierre-Luc Dubois'],['Dylan Demelo','Dylan DeMelo'],['Mitch Marner','Mitchell Marner']]
     for replacei in replaceNameList:
         TOIPercent = TOIPercent.replace(replacei[0],replacei[1])
@@ -97,17 +99,20 @@ for curSituation in list(itertools.product(['HD','MD','LD'],['EV','PP','PK'],['H
     elif (curSituation[1] == 'PP' and curSituation[2] == 'A') or (curSituation[1] == 'PK' and curSituation[2] == 'H'): timeFactor = PP_TOI_pred_A
     
     player_TOIPerc = TOIPercent(curSituation[1],timeFactor,names[curSituation[2]])
-    def getCurPred(x,OffOrDef):
+    def getCurPred(curSituation,playerStats_relative,x):
         try:
-            return playerStats_relative[curSituation[1]].loc[x][curSituation[0] + OffOrDef + 'adjpermin']
+            return playerStats_relative[curSituation[1] + curSituation[2]].loc[x][curSituation[0] + curSituation[3] + 'adjpermin']
         except:
             print(x)
-            return np.median(playerStats_relative[curSituation[1]][curSituation[0] + OffOrDef + 'adjpermin'])
+            print(curSituation)
+            return np.median(playerStats_relative[curSituation[1] + curSituation[2]][curSituation[0] + curSituation[3] + 'adjpermin']) - np.std(playerStats_relative[curSituation[1] + curSituation[2]][curSituation[0] + curSituation[3] + 'adjpermin'])
     
-    SC_pred_relative[curSituation[0] + curSituation[1] + curSituation[2] + curSituation[3]] = [getCurPred(x,curSituation[3]) for x in names[curSituation[2]][0:18]]
+    SC_pred_relative[curSituation[0] + curSituation[1] + curSituation[2] + curSituation[3]] = [getCurPred(curSituation,playerStats_relative,x) for x in names[curSituation[2]][0:18]]
     # Get weighted scoring chances based on projected mins per player in current situation
     SC_pred_relative[curSituation[0] + curSituation[1] + curSituation[2] + curSituation[3]] = (np.sum([a * b for a, b in zip(player_TOIPerc, SC_pred_relative[curSituation[0] + curSituation[1] + curSituation[2] + curSituation[3]])])/np.sum(player_TOIPerc))*timeFactor
     
+
+
 
 SC_pred_compiled_relative = dict()
 for curSituation in list(itertools.product(['HD','MD','LD'],['EV','PP','PK'])):
@@ -118,7 +123,7 @@ for curSituation in list(itertools.product(['HD','MD','LD'],['EV','PP','PK'])):
     SC_pred_compiled_relative[curSituation[0] + curSituation[1] + 'H'] = round((SC_pred_relative[curSituation[0] + curSituation[1] + 'HCF'] + SC_pred_relative[curSituation[0] + adjSituation + 'ACA'])/2)
     SC_pred_compiled_relative[curSituation[0] + curSituation[1] + 'A'] = round((SC_pred_relative[curSituation[0] + curSituation[1] + 'ACF'] + SC_pred_relative[curSituation[0] + adjSituation + 'HCA'])/2)
 
-
+'''
 
 print('SC_PROB')
 SC_prob = dict()
@@ -132,7 +137,7 @@ for curSituation in list(itertools.product(['HD','MD','LD'],['EV','PP','PK'],['H
         try:
             return playerStats_relative[curSituation[1]].loc[x][curSituation[0] + '_SC_prob_' + OffOrDef]
         except:
-            return np.median(playerStats_relative[curSituation[1]][curSituation[0] + '_SC_prob_' + OffOrDef])
+            return np.median(playerStats_relative[curSituation[1]][curSituation[0] + '_SC_prob_' + OffOrDef]) - np.std(playerStats_relative[curSituation[1]][curSituation[0] + '_SC_prob_' + OffOrDef])
     
     SC_prob[curSituation[0] + curSituation[1] + curSituation[2] + curSituation[3]] = [getCurProb(x,curSituation[3]) for x in names[curSituation[2]][0:18]]
     SC_prob[curSituation[0] + curSituation[1] + curSituation[2] + curSituation[3]] = (np.sum([a * b for a, b in zip(player_TOIPerc, SC_prob[curSituation[0] + curSituation[1] + curSituation[2] + curSituation[3]])])/np.sum(player_TOIPerc))
@@ -159,7 +164,7 @@ def adjByGoalieStat(curStat,dangeri,goalieStats,SC_prob_compiled,whichGoalie,cur
     try:
         SC_prob_compiled[curStat] = SC_prob_compiled[curStat] - (goalieStats[curSituation].loc[goalieStats[whichGoalie]][dangeri + 'SV%']*SC_prob_compiled[curStat])
     except: # If Goalie has not played then use median of stat
-        SC_prob_compiled[curStat] = SC_prob_compiled[curStat] - ((np.median(goalieStats[curSituation][dangeri + 'SV%']))*SC_prob_compiled[curStat])
+        SC_prob_compiled[curStat] - ( ( np.median( goalieStats[curSituation][dangeri + 'SV%'] ) - np.std( goalieStats[curSituation][dangeri + 'SV%'] ))*SC_prob_compiled[curStat] )
         print('Error: ' + whichGoalie)
     
 for curStat in SC_prob_compiled.keys():
@@ -191,9 +196,6 @@ winProb = [x1 - x2 for (x1, x2) in zip(compiled_outcomes_H, compiled_outcomes_A)
 winProb_H = round((len([x for x in winProb if x > 0])/numSims)*100,2)
 winProb_A = round((len([x for x in winProb if x < 0])/numSims)*100,2)
 winProb_T = round((len([x for x in winProb if x == 0])/numSims)*100,2)
-# Adjust Probabilities based on Rest Adjustment
-#winProb_H = winProb_H + restAdj_WP
-#winProb_A = winProb_A - restAdj_WP
 
 print()
 print(f"{awayTeam} = {winProb_A}%")
@@ -213,11 +215,36 @@ print()
 
 
 # Kelly Criterion Formula
-assorted_minor_functions.kellyCalculation(matchupsInput,curMatchup,winProb_H_notie,winProb_A_notie,awayTeam,homeTeam)
+kellyValue_H, kellyValue_A = assorted_minor_functions.kellyCalculation(winProb_H_notie,winProb_A_notie,awayTeam,homeTeam,matchupsInput.loc[curMatchup]['HomeOdds'],matchupsInput.loc[curMatchup]['AwayOdds'])
+print('Kelly Values')
+print(f"{awayTeam} = {round(kellyValue_A*100,2)}%")
+print(f"{homeTeam} = {round(kellyValue_H*100,2)}%")
+print()
+
+
+# Calculated Over/Under Probabilities
+overUnderTotal = [x1 + x2 for (x1, x2) in zip(compiled_outcomes_H, compiled_outcomes_A)]
+overUnderProb_over = round((len([x for x in overUnderTotal if x > gameOverUnder])/numSims)*100,2)
+overUnderProb_under = round((len([x for x in overUnderTotal if x < gameOverUnder])/numSims)*100,2)
+overUnderProb_tie = round((len([x for x in overUnderTotal if x == gameOverUnder])/numSims)*100,2)
+
+# Calculated Win Probabilities - Excluding Ties
+overUnder_over_notie = round(overUnderProb_over + (overUnderProb_over/(overUnderProb_over + overUnderProb_under))*overUnderProb_tie,2)
+overUnder_under_notie = round(overUnderProb_under + (overUnderProb_under/(overUnderProb_over + overUnderProb_under))*overUnderProb_tie,2)
+print('When No Tie Possible')
+print(f"Over = {overUnder_over_notie}%")
+print(f"Under = {overUnder_under_notie}%")
+print()
+
+# Kelly Criterion Formula
+kellyValue_O, kellyValue_U = assorted_minor_functions.kellyCalculation(overUnder_over_notie,overUnder_under_notie,awayTeam,homeTeam,matchupsInput.loc[curMatchup]['OverOdds'],matchupsInput.loc[curMatchup]['UnderOdds'])
+print('Kelly Values')
+print(f"Over = {round(kellyValue_O*100,2)}%")
+print(f"Under = {round(kellyValue_U*100,2)}%")
+print()
+
 
 #PRINT LINEUPS
 assorted_minor_functions.printProjLineups(homeTeam,awayTeam,names)
 
-
-
-
+'''

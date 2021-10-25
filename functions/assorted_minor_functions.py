@@ -62,9 +62,7 @@ def printProjLineups(homeTeam,awayTeam,names):
         if teamPlayer[1] == numArray[-1]: print()
     
 # CALCULATE KELLY VALUE
-def kellyCalculation(matchupsInput,curMatchup,winProb_H_notie,winProb_A_notie,awayTeam,homeTeam):
-    homeOdds = matchupsInput.loc[curMatchup]['HomeOdds']
-    awayOdds = matchupsInput.loc[curMatchup]['AwayOdds']
+def kellyCalculation(prob1_notie,prob2_notie,awayTeam,homeTeam,odds1,odds2):
     kellyMultiplier = 1
     # Convert odds to Decimal Odds
     def convertOdds(odds):
@@ -72,18 +70,14 @@ def kellyCalculation(matchupsInput,curMatchup,winProb_H_notie,winProb_A_notie,aw
         else: odds = (odds/100)+1
         return odds
     
-    homeOdds = convertOdds(homeOdds)
-    awayOdds = convertOdds(awayOdds)
+    odds1 = convertOdds(odds1)
+    odds2 = convertOdds(odds2)
     
     # Calculate Kelly Value and print result
-    kellyValue_H = ((homeOdds - 1) * (winProb_H_notie/100) - (1 - (winProb_H_notie/100))) / (homeOdds - 1) * kellyMultiplier
-    kellyValue_A = ((awayOdds - 1) * (winProb_A_notie/100) - (1 - (winProb_A_notie/100))) / (awayOdds - 1) * kellyMultiplier
+    kellyValue_1 = ((odds1 - 1) * (prob1_notie/100) - (1 - (prob1_notie/100))) / (odds1 - 1) * kellyMultiplier
+    kellyValue_2 = ((odds2 - 1) * (prob2_notie/100) - (1 - (prob2_notie/100))) / (odds2 - 1) * kellyMultiplier
     
-    print('Kelly Values')
-    print(f"{awayTeam} = {round(kellyValue_A*100,2)}%")
-    print(f"{homeTeam} = {round(kellyValue_H*100,2)}%")
-    print()
-    
+    return kellyValue_1, kellyValue_2
     
     
     

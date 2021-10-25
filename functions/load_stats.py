@@ -26,23 +26,23 @@ def loadStats():
         
     
     playerStats_relative = dict()
-    for curSituation in ['EV','PP','PK']:
-        playerStats_relative[curSituation] = pd.read_csv('input/2020_2021_PlayerStats_Relative_OnIce_' + curSituation + '.csv',encoding= 'unicode_escape').set_index('Player',drop=True)
+    for curSituation in list(itertools.product(['EV','PP','PK'],['H','A'])):
+        playerStats_relative[curSituation[0] + curSituation[1]] = pd.read_csv('input/2020_2021_PlayerStats_Relative_OnIce_' + curSituation[0] + '_' + curSituation[1] + '.csv',encoding= 'unicode_escape').set_index('Player',drop=True)
         # Replace NAN values and stats for players with less than 30 minutes with the median of each column
-        playerStats_relative[curSituation] = replace_missing_data.replaceMissingValues(playerStats_relative[curSituation])
+        playerStats_relative[curSituation[0] + curSituation[1]] = replace_missing_data.replaceMissingValues(playerStats_relative[curSituation[0] + curSituation[1]])
         
         for dangeri in ['HD','MD','LD']:
             
             for curStat in ['CF','CA','GF','GA']:
                 # Adjust relative values based on baseline numbers - First make values per minute
-                playerStats_relative[curSituation][dangeri + curStat + 'adjpermin'] = baseline_SC[dangeri + curSituation + curStat] + (playerStats_relative[curSituation][dangeri + curStat + '/60 Rel']/60)
+                playerStats_relative[curSituation[0] + curSituation[1]][dangeri + curStat + 'adjpermin'] = baseline_SC[dangeri + curSituation[0] + curStat] + (playerStats_relative[curSituation[0] + curSituation[1]][dangeri + curStat + '/60 Rel']/60)
                 # Adjust negative values to be 0
-                playerStats_relative[curSituation][dangeri + curStat + 'adjpermin'] = playerStats_relative[curSituation][dangeri + curStat + 'adjpermin'].apply(lambda x: 0 if x < 0 else x)
+                playerStats_relative[curSituation[0] + curSituation[1]][dangeri + curStat + 'adjpermin'] = playerStats_relative[curSituation[0] + curSituation[1]][dangeri + curStat + 'adjpermin'].apply(lambda x: 0 if x < 0 else x)
         
             # Hard code scenarios with extremely low sample sizes as 0's
             # These include goals against while on the PP, and Goals for while on the penalty kill
-            if curSituation == 'PP': playerStats_relative[curSituation][dangeri + 'GAadjpermin'] = 0
-            elif curSituation == 'PK': playerStats_relative[curSituation][dangeri + 'GFadjpermin'] = 0
+            if curSituation[0] == 'PP': playerStats_relative[curSituation[0] + curSituation[1]][dangeri + 'GAadjpermin'] = 0
+            elif curSituation == 'PK': playerStats_relative[curSituation[0] + curSituation[1]][dangeri + 'GFadjpermin'] = 0
         
             # Calculate Probability of Scoring Based on Corsi and Goals
             def dangerSCProb_off_relative(x):
@@ -56,8 +56,8 @@ def loadStats():
                 except:
                     return 0
             
-            playerStats_relative[curSituation][dangeri + '_SC_prob_off'] = playerStats_relative[curSituation].apply(lambda x: dangerSCProb_off_relative(x), axis=1)
-            playerStats_relative[curSituation][dangeri + '_SC_prob_def'] = playerStats_relative[curSituation].apply(lambda x: dangerSCProb_def_relative(x), axis=1)
+            playerStats_relative[curSituation[0] + curSituation[1]][dangeri + '_SC_prob_off'] = playerStats_relative[curSituation[0] + curSituation[1]].apply(lambda x: dangerSCProb_off_relative(x), axis=1)
+            playerStats_relative[curSituation[0] + curSituation[1]][dangeri + '_SC_prob_def'] = playerStats_relative[curSituation[0] + curSituation[1]].apply(lambda x: dangerSCProb_def_relative(x), axis=1)
     
     # Correct Tim Stuetzle's name. Accent appears different in different dataframes
     def replaceNames_Tim(df,orig,new):
@@ -67,13 +67,14 @@ def loadStats():
         df.index = as_list
         return df
 
-    playerStats_relative['EV'] = replaceNames_Tim(playerStats_relative['EV'],'Tim StÃ¼tzle','Tim Stuetzle')
-    playerStats_relative['PP'] = replaceNames_Tim(playerStats_relative['PP'],'Tim StÃ¼tzle','Tim Stuetzle')
-    playerStats_relative['PK'] = replaceNames_Tim(playerStats_relative['PK'],'Tim StÃ¼tzle','Tim Stuetzle')
-    playerStats_relative['EV'] = replaceNames_Tim(playerStats_relative['EV'],'Alexis LafreniÃ¨re','Alexis Lafreniere')
-    playerStats_relative['PP'] = replaceNames_Tim(playerStats_relative['PP'],'Alexis LafreniÃ¨re','Alexis Lafreniere')
-    playerStats_relative['PK'] = replaceNames_Tim(playerStats_relative['PK'],'Alexis LafreniÃ¨re','Alexis Lafreniere')
-        
+    
+    for homeAway in ['H','A']:
+        playerStats_relative['EV' + homeAway] = replaceNames_Tim(playerStats_relative['EV' + homeAway],'Tim StÃ¼tzle','Tim Stuetzle')
+        playerStats_relative['PP' + homeAway] = replaceNames_Tim(playerStats_relative['PP' + homeAway],'Tim StÃ¼tzle','Tim Stuetzle')
+        #playerStats_relative['PK' + homeAway] = replaceNames_Tim(playerStats_relative['PK' + homeAway],'Tim StÃ¼tzle','Tim Stuetzle')
+        playerStats_relative['EV' + homeAway] = replaceNames_Tim(playerStats_relative['EV' + homeAway],'Alexis LafreniÃ¨re','Alexis Lafreniere')
+        playerStats_relative['PP' + homeAway] = replaceNames_Tim(playerStats_relative['PP' + homeAway],'Alexis LafreniÃ¨re','Alexis Lafreniere')
+        playerStats_relative['PK' + homeAway] = replaceNames_Tim(playerStats_relative['PK' + homeAway],'Alexis LafreniÃ¨re','Alexis Lafreniere')
         
         
     goalieStats = dict()
