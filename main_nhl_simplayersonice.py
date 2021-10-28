@@ -11,16 +11,13 @@ import pandas as pd
 import numpy as np
 import itertools
 
-import assorted_plots
 import assorted_minor_functions
-import sog_outcome_simulator
 import load_stats
-import assign_stats
 
 
 # LOAD STATISTICS FILES
 print('LOAD STATS')
-teamStats, goalieStats, playerStats_relative = load_stats.loadStats()
+teamStats, goalieStats, playerStats_relative, baseline_SC = load_stats.loadStats()
 
 # INPUT
 matchupsInput = pd.read_csv('matchups.csv')
@@ -66,7 +63,8 @@ def TOIPercent(curSituation,timeFactor,names):
     # Remove % sign from values
     TOIPercent['TOI%'] = TOIPercent['TOI%'].apply(lambda x: float(x[:-1]))
     # Get current Median % to fill players with no data
-    curMedian = np.nanmedian(TOIPercent['TOI%']) - np.std(TOIPercent['TOI%'])
+    curMedian_F = np.nanmedian(TOIPercent[TOIPercent['Position'] == 'F']['TOI%']) - np.std(TOIPercent[TOIPercent['Position'] == 'D']['TOI%'])
+    curMedian_D = np.nanmedian(TOIPercent[TOIPercent['Position'] == 'D']['TOI%']) - np.std(TOIPercent[TOIPercent['Position'] == 'D']['TOI%'])
     replaceNameList = [['Tim StÜtzle','Tim Stuetzle'],['Pierre-luc Dubois','Pierre-Luc Dubois'],['Dylan Demelo','Dylan DeMelo'],['Mitch Marner','Mitchell Marner']]
     for replacei in replaceNameList:
         TOIPercent = TOIPercent.replace(replacei[0],replacei[1])
@@ -78,15 +76,127 @@ def TOIPercent(curSituation,timeFactor,names):
         except:
             return curMedian
     
-    player_TOIPerc = [getCurTOI(x,TOIPercent,curMedian) for x in names[0:18]]
-    player_TOIPerc_F = [x/np.sum(player_TOIPerc[0:12]) for x in player_TOIPerc[0:12]]
-    player_TOIPerc_F = [(x * timeFactor*3) for x in player_TOIPerc_F]
-    player_TOIPerc_D = [x/np.sum(player_TOIPerc[12:18]) for x in player_TOIPerc[12:18]]
-    player_TOIPerc_D = [(x * timeFactor*2) for x in player_TOIPerc_D]
+    player_TOIPerc_F = [getCurTOI(x,TOIPercent,curMedian_F) for x in names[0:12]]
+    player_TOIPerc_F = [x/np.sum(player_TOIPerc_F) for x in player_TOIPerc_F]
+    player_TOIPerc_D = [getCurTOI(x,TOIPercent,curMedian_D) for x in names[12:18]]
+    player_TOIPerc_D = [x/np.sum(player_TOIPerc_D) for x in player_TOIPerc_D]
     
-    player_TOIPerc = player_TOIPerc_F + player_TOIPerc_D
     
-    return player_TOIPerc
+    # player_TOIPerc = [getCurTOI(x,TOIPercent,curMedian) for x in names[0:18]]
+    # player_TOIPerc_F = [x/np.sum(player_TOIPerc[0:12]) for x in player_TOIPerc[0:12]]
+    # player_TOIPerc_F = [(x * timeFactor*3) for x in player_TOIPerc_F]
+    # player_TOIPerc_D = [x/np.sum(player_TOIPerc[12:18]) for x in player_TOIPerc[12:18]]
+    # player_TOIPerc_D = [(x * timeFactor*2) for x in player_TOIPerc_D]
+    #player_TOIPerc = player_TOIPerc_F + player_TOIPerc_D
+    
+    return player_TOIPerc_F, player_TOIPerc_D
+
+player_TOIPerc_F_H, player_TOIPerc_D_H = TOIPercent('EV',EV_TOI_pred,names['H'])
+player_TOIPerc_F_A, player_TOIPerc_D_A = TOIPercent('EV',EV_TOI_pred,names['H'])
+
+
+
+
+
+
+playersOnIce_H = list(np.random.choice(names['H'][0:12], size=3, replace=False, p=player_TOIPerc_F_H)) + list(np.random.choice(names['H'][12:18], size=2, replace=False, p=player_TOIPerc_D_H))
+playersOnIce_A = list(np.random.choice(names['A'][0:12], size=3, replace=False, p=player_TOIPerc_F_A)) + list(np.random.choice(names['A'][12:18], size=2, replace=False, p=player_TOIPerc_D_A))
+
+print('SC_PRED')
+
+def getCurPred(playerStats_relative,x,curStat,homeOrAway):
+    try:
+        return playerStats_relative['EV' + homeOrAway].loc[x][curStat + '/60 Rel']
+    except:
+        print(x)
+
+# Convert all stats to per second
+HDCF_H = np.mean([getCurPred(playerStats_relative,x,'HDCF','H')/3600 for x in playersOnIce_H])
+HDCA_A = np.mean([getCurPred(playerStats_relative,x,'HDCA','A')/3600 for x in playersOnIce_A])
+HDCF_H_Prob_Rel = np.mean([HDCF_H,HDCA_A])
+HDCF_H_Prob_Adj = (baseline_SC['HDEVCF']/60) + HDCF_H_Prob_Rel
+
+# Sim whether a high-danger scoring chance occurs
+k = 0
+counter= 0
+for y in range(0,3000):
+    d = np.random.choice([0,1], size=1, replace=True, p=[1-HDCF_H_Prob_Adj,HDCF_H_Prob_Adj])
+    if d == 1:
+        k += 1
+
+print(k)
+
+
+
+
+
+
+
+'''
+
+
+# CALCULATE PREDICTED RELATIVE SCORING CHANCES
+print('SC_PRED')
+SC_pred_relative = dict()
+for curSituation in list(itertools.product(['HD','MD','LD'],['EV','PP','PK'],['H','A'],['CF','CA'])):
+    if curSituation[1] == 'EV': timeFactor = EV_TOI_pred
+    elif (curSituation[1] == 'PP' and curSituation[2] == 'H') or (curSituation[1] == 'PK' and curSituation[2] == 'A'): timeFactor = PP_TOI_pred_H
+    elif (curSituation[1] == 'PP' and curSituation[2] == 'A') or (curSituation[1] == 'PK' and curSituation[2] == 'H'): timeFactor = PP_TOI_pred_A
+    
+    player_TOIPerc = TOIPercent(curSituation[1],timeFactor,names[curSituation[2]])
+    def getCurPred(curSituation,playerStats_relative,x):
+        try:
+            return playerStats_relative[curSituation[1] + curSituation[2]].loc[x][curSituation[0] + curSituation[3] + 'adjpermin']
+        except:
+            print(x)
+            print(curSituation)
+            return np.median(playerStats_relative[curSituation[1] + curSituation[2]][curSituation[0] + curSituation[3] + 'adjpermin']) - np.std(playerStats_relative[curSituation[1] + curSituation[2]][curSituation[0] + curSituation[3] + 'adjpermin'])
+    
+    SC_pred_relative[curSituation[0] + curSituation[1] + curSituation[2] + curSituation[3]] = [getCurPred(curSituation,playerStats_relative,x) for x in names[curSituation[2]][0:18]]
+    # Get weighted scoring chances based on projected mins per player in current situation
+    break
+    SC_pred_relative[curSituation[0] + curSituation[1] + curSituation[2] + curSituation[3]] = (np.sum([a * b for a, b in zip(player_TOIPerc, SC_pred_relative[curSituation[0] + curSituation[1] + curSituation[2] + curSituation[3]])])/np.sum(player_TOIPerc))*timeFactor
+    
+
+
+'''
+
+
+
+
+
+
+# For every second
+# Simulate players on the ice for each team
+    
+
+
+
+
+
+
+
+# Simulate whether each team has a corsi for based on CF/CA
+# If there is a corsi for, simulate who takes it
+# Simulate whether it's a goal based on probability
+# Include opposing goalie in probability of scoring % calculation
+
+
+
+
+
+
+
+
+
+
+
+
+'''
+
+
+
+
 
 
 
@@ -113,7 +223,7 @@ for curSituation in list(itertools.product(['HD','MD','LD'],['EV','PP','PK'],['H
     SC_pred_relative[curSituation[0] + curSituation[1] + curSituation[2] + curSituation[3]] = (np.sum([a * b for a, b in zip(player_TOIPerc, SC_pred_relative[curSituation[0] + curSituation[1] + curSituation[2] + curSituation[3]])])/np.sum(player_TOIPerc))*timeFactor
     
 
-'''
+
 
 SC_pred_compiled_relative = dict()
 for curSituation in list(itertools.product(['HD','MD','LD'],['EV','PP','PK'])):

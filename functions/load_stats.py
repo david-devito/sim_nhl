@@ -87,4 +87,4 @@ def loadStats():
             curAVG = np.mean(goalieStats[curSituation][curCol])
             goalieStats[curSituation][curCol] = goalieStats[curSituation][curCol].apply(lambda x: (x-curAVG)/curAVG)
     
-    return teamStats, goalieStats, playerStats_relative
+    return teamStats, goalieStats, playerStats_relative, baseline_SC
