@@ -82,44 +82,95 @@ def TOIPercent(curSituation,timeFactor,names):
     player_TOIPerc_D = [x/np.sum(player_TOIPerc_D) for x in player_TOIPerc_D]
     
     
-    # player_TOIPerc = [getCurTOI(x,TOIPercent,curMedian) for x in names[0:18]]
-    # player_TOIPerc_F = [x/np.sum(player_TOIPerc[0:12]) for x in player_TOIPerc[0:12]]
-    # player_TOIPerc_F = [(x * timeFactor*3) for x in player_TOIPerc_F]
-    # player_TOIPerc_D = [x/np.sum(player_TOIPerc[12:18]) for x in player_TOIPerc[12:18]]
-    # player_TOIPerc_D = [(x * timeFactor*2) for x in player_TOIPerc_D]
-    #player_TOIPerc = player_TOIPerc_F + player_TOIPerc_D
-    
     return player_TOIPerc_F, player_TOIPerc_D
 
 player_TOIPerc_F_H, player_TOIPerc_D_H = TOIPercent('EV',EV_TOI_pred,names['H'])
-player_TOIPerc_F_A, player_TOIPerc_D_A = TOIPercent('EV',EV_TOI_pred,names['H'])
+player_TOIPerc_F_A, player_TOIPerc_D_A = TOIPercent('EV',EV_TOI_pred,names['A'])
 
 
 
-
-
-
+# Given situation, determine who is on the ice for each team
 playersOnIce_H = list(np.random.choice(names['H'][0:12], size=3, replace=False, p=player_TOIPerc_F_H)) + list(np.random.choice(names['H'][12:18], size=2, replace=False, p=player_TOIPerc_D_H))
 playersOnIce_A = list(np.random.choice(names['A'][0:12], size=3, replace=False, p=player_TOIPerc_F_A)) + list(np.random.choice(names['A'][12:18], size=2, replace=False, p=player_TOIPerc_D_A))
 
-print('SC_PRED')
 
+# Get probability of scoring chance for each team given situational factors
+# Convert all stats to per second
+print('PREDICT IF A SCORING CHANCE HAPPENS')
 def getCurPred(playerStats_relative,x,curStat,homeOrAway):
     try:
-        return playerStats_relative['EV' + homeOrAway].loc[x][curStat + '/60 Rel']
+        return playerStats_relative['EV' + homeOrAway].loc[x][curStat + 'adjpermin']
     except:
         print(x)
 
-# Convert all stats to per second
-HDCF_H = np.mean([getCurPred(playerStats_relative,x,'HDCF','H')/3600 for x in playersOnIce_H])
-HDCA_A = np.mean([getCurPred(playerStats_relative,x,'HDCA','A')/3600 for x in playersOnIce_A])
+# Home Offense
+HDCF_H = np.mean([getCurPred(playerStats_relative,x,'HDCF','H')/60 for x in playersOnIce_H])
+# Home Defense
+HDCA_H = np.mean([getCurPred(playerStats_relative,x,'HDCA','H')/60 for x in playersOnIce_H])
+# Away Offense
+HDCF_A = np.mean([getCurPred(playerStats_relative,x,'HDCF','A')/60 for x in playersOnIce_A])
+# Away Defense
+HDCA_A = np.mean([getCurPred(playerStats_relative,x,'HDCA','A')/60 for x in playersOnIce_A])
+# Average Offensive and Defensive Stats
+# Home
 HDCF_H_Prob_Rel = np.mean([HDCF_H,HDCA_A])
-HDCF_H_Prob_Adj = (baseline_SC['HDEVCF']/60) + HDCF_H_Prob_Rel
+# Away
+HDCF_A_Prob_Rel = np.mean([HDCF_A,HDCA_H])
+
+# Simulate whether a scoring chance happens or not
+HDCF_H_Prob_SC = np.random.choice([0,1], size=1, replace=True, p=[1-HDCF_H_Prob_Rel,HDCF_H_Prob_Rel])[0]
+
+if HDCF_H_Prob_SC == 1:
+    # There was a scoring chance so calculate probability of scoring
+    print('GET PROBABILITY OF A GOAL ON THE SCORING CHANCE')
+    def getCurProb(playerStats_relative,x,curStat,homeOrAway):
+        try:
+            return playerStats_relative['EV' + homeOrAway].loc[x][curStat]
+        except:
+            print(x)
+    
+    # Home Offense
+    HDprob_Hoff = np.mean([getCurProb(playerStats_relative,x,'HD_SC_prob_off','H') for x in playersOnIce_H])
+    # Home Defense
+    HDprob_Hdef = np.mean([getCurProb(playerStats_relative,x,'HD_SC_prob_def','H') for x in playersOnIce_H])
+    # Away Offense
+    HDprob_Aoff = np.mean([getCurProb(playerStats_relative,x,'HD_SC_prob_off','A') for x in playersOnIce_A])
+    # Away Defense
+    HDprob_Adef = np.mean([getCurProb(playerStats_relative,x,'HD_SC_prob_def','A') for x in playersOnIce_A])
+    
+    # Average Offensive and Defensive Stats
+    # Home
+    HD_H_Prob = np.mean([HDprob_Hoff,HDprob_Adef])
+    # Away
+    HD_A_Prob = np.mean([HDprob_Aoff,HDprob_Hdef])
+
+    # Simulate whether the scoring chance results in a goal
+    HDCF_H_Prob_Goal = np.random.choice([0,1], size=1, replace=True, p=[1-HD_H_Prob,HD_H_Prob])[0]
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+'''
+
+
+
 
 # Sim whether a high-danger scoring chance occurs
 k = 0
 counter= 0
-for y in range(0,3000):
+for y in range(0,int(round(EV_TOI_pred*60))):
     d = np.random.choice([0,1], size=1, replace=True, p=[1-HDCF_H_Prob_Adj,HDCF_H_Prob_Adj])
     if d == 1:
         k += 1
@@ -127,7 +178,7 @@ for y in range(0,3000):
 print(k)
 
 
-
+'''
 
 
 
