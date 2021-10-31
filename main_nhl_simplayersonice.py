@@ -14,6 +14,7 @@ import itertools
 import assorted_minor_functions
 import load_stats
 import time
+import assorted_plots
 
 
 # LOAD STATISTICS FILES
@@ -88,8 +89,12 @@ def TOIPercent(curSituation,names):
 player_TOIPerc_F_H, player_TOIPerc_D_H = TOIPercent('EV',names['H'])
 player_TOIPerc_F_A, player_TOIPerc_D_A = TOIPercent('EV',names['A'])
 
+compiled_outcomes_H = []
+compiled_outcomes_A = []
 
-for i in range(0,10):
+start = time.time()
+numSims = 100
+for i in range(0,numSims):
     ## EVEN STRENGTH SIMULATION
     #start = time.time()
     #print('EVEN STRENGTH')
@@ -170,8 +175,12 @@ for i in range(0,10):
                     
                     if teami[0] == 'H': 
                         ProbGoalOccurs = adjByGoalieStat(dangeri,goalieStats,ProbGoalOccurs,'AwayGoalie','EV')
+                        # Adjust Goal Probability based on Rest Adjustment - Add to Home Team Probability
+                        ProbGoalOccurs = ProbGoalOccurs + (ProbGoalOccurs*restAdj_Goals)
                     elif teami[0] == 'A': 
                         ProbGoalOccurs = adjByGoalieStat(dangeri,goalieStats,ProbGoalOccurs,'HomeGoalie','EV')
+                        # Adjust Goal Probability based on Rest Adjustment - Subtract from Away Team Probability
+                        ProbGoalOccurs = ProbGoalOccurs - (ProbGoalOccurs*restAdj_Goals)
                     
                     # Simulate whether each scoring chance results in a goal
                     numGoals = np.sum(np.random.choice([0,1], size=numSC, replace=True, p=[1-ProbGoalOccurs,ProbGoalOccurs])[0])
@@ -251,6 +260,26 @@ for i in range(0,10):
                     # Average Offensive and Defensive Stats
                     ProbGoalOccurs = np.mean([GFProbOff,GAProbDef])
                 
+                    # Adjust Probability of Goal based on Opposing Goalie Stat
+                    # Use Opposing goalie SV% on PK, They would be facing a PP
+                    def adjByGoalieStat(dangeri,goalieStats,ProbGoalOccurs,whichGoalie,curSituation):
+                        try:
+                            return ProbGoalOccurs - (goalieStats[curSituation].loc[goalieStats[whichGoalie]][dangeri + 'SV%']*ProbGoalOccurs)
+                        except: # If Goalie has not played then use median of stat
+                            return ProbGoalOccurs - ( ( np.median( goalieStats[curSituation][dangeri + 'SV%'] ) - np.std( goalieStats[curSituation][dangeri + 'SV%'] ))*ProbGoalOccurs )
+                            print('Error: ' + whichGoalie)
+                    
+                    if teami[0] == 'H': 
+                        ProbGoalOccurs = adjByGoalieStat(dangeri,goalieStats,ProbGoalOccurs,'AwayGoalie','PK')
+                        # Adjust Goal Probability based on Rest Adjustment - Add to Home Team Probability
+                        ProbGoalOccurs = ProbGoalOccurs + (ProbGoalOccurs*restAdj_Goals)
+                    elif teami[0] == 'A': 
+                        ProbGoalOccurs = adjByGoalieStat(dangeri,goalieStats,ProbGoalOccurs,'HomeGoalie','PK')
+                        # Adjust Goal Probability based on Rest Adjustment - Subtract from Away Team Probability
+                        ProbGoalOccurs = ProbGoalOccurs - (ProbGoalOccurs*restAdj_Goals)
+                        
+                        
+                
                     # Simulate whether each scoring chance results in a goal
                     numGoals = np.sum(np.random.choice([0,1], size=numSC, replace=True, p=[1-ProbGoalOccurs,ProbGoalOccurs])[0])
                     # Populate Array with Results
@@ -259,45 +288,15 @@ for i in range(0,10):
     print(goalCounter)
     #end = time.time()
     #print(end-start)
+    
+    
+    # Add Goals for Each Team to Compiled Outcomes Arrays
+    compiled_outcomes_H.append(goalCounter['HHD'] + goalCounter['HMD'] + goalCounter['HLD'])
+    compiled_outcomes_A.append(goalCounter['AHD'] + goalCounter['AMD'] + goalCounter['ALD'])
 
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-'''
-
-
-            
-# ADJUST SCORING PROBABILITY BASED ON REST ADVANTAGE
-for curStat in SC_prob_compiled.keys():
-    # Adjust based on goal differential of rest advantage
-    if curStat.endswith('H'): # Home Team Stat
-        SC_prob_compiled[curStat] = SC_prob_compiled[curStat] + (SC_prob_compiled[curStat]*restAdj_Goals)
-    else:
-        SC_prob_compiled[curStat] = SC_prob_compiled[curStat] - (SC_prob_compiled[curStat]*restAdj_Goals)
-
-
-# SIMULATE OUTCOMES OF EACH SITUATION
-print('SIMULATE')
-numSims = 20000
-compiled_outcomes_H, compiled_outcomes_A = sog_outcome_simulator.simulate_sog(numSims,SC_pred_compiled_relative,SC_prob_compiled)
+end = time.time()
+print(end-start)
 
 # Plot Predicted Distribution of Goals for Each Team
 assorted_plots.plotPredictedTeamGoals(compiled_outcomes_H,compiled_outcomes_A,homeTeam,awayTeam)
@@ -359,4 +358,3 @@ print()
 #PRINT LINEUPS
 assorted_minor_functions.printProjLineups(homeTeam,awayTeam,names)
 
-'''
