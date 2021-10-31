@@ -89,241 +89,183 @@ player_TOIPerc_F_H, player_TOIPerc_D_H = TOIPercent('EV',names['H'])
 player_TOIPerc_F_A, player_TOIPerc_D_A = TOIPercent('EV',names['A'])
 
 
-
-## EVEN STRENGTH SIMULATION
-
-# Calculate Proportion of time that each line is on the ice
-def propTOIByLine(perTOI,numPlayers):
-    TOIByLine = [perTOI[i:i + numPlayers] for i in range(0, len(perTOI), numPlayers)]
-    avg_TOIBYLine = [np.mean(x) for x in TOIByLine]
-    prop_TOIByLine = [x/(np.sum(avg_TOIBYLine)) for x in avg_TOIBYLine]
-    return prop_TOIByLine
-
-propTOIEVH_F = propTOIByLine(player_TOIPerc_F_H,3)
-propTOIEVA_F = propTOIByLine(player_TOIPerc_F_A,3)
-propTOIEVH_D = propTOIByLine(player_TOIPerc_D_H,2)
-propTOIEVA_D = propTOIByLine(player_TOIPerc_D_A,2)
-
-
-goalCounter = dict()
-for curSituation in list(itertools.product(['HD','MD','LD'],['H','A'])):
-    goalCounter[curSituation[1] + curSituation[0]] = 0
-
-
-for teami in [['H','A'],['A','H']]:
-    if teami[0] == 'H': linepropArray = [propTOIEVH_F,propTOIEVH_D,propTOIEVA_F,propTOIEVA_D]
-    else: linepropArray = [propTOIEVA_F,propTOIEVA_D,propTOIEVH_F,propTOIEVH_D]
-    totalSituationalSeconds = int(round(EV_TOI_pred*60))
-    for dangeri in ['HD','MD','LD']:
-        for FLine_O,DPair_O,FLine_D,DPair_D in list(itertools.product([0,1,2,3],[0,1,2],[0,1,2,3],[0,1,2])):
-            # Total time on ice for particular line/dpair matchup
-            TOIForMatchup = ((((totalSituationalSeconds*linepropArray[0][FLine_O])*(linepropArray[1][DPair_O]))*(linepropArray[2][FLine_D]))*(linepropArray[3][DPair_D]))
-            secondsOfMatchup = int(round(TOIForMatchup))
-            
-            # Get Players on Ice for Each Team
-            playersOnIce_O = [names[teami[0]][0:12][i:i + 3] for i in range(0, len(names[teami[0]][0:12]), 3)][FLine_O] + [names[teami[0]][12:18][i:i + 2] for i in range(0, len(names[teami[0]][12:18]), 2)][DPair_O]
-            playersOnIce_D = [names[teami[1]][0:12][i:i + 3] for i in range(0, len(names[teami[1]][0:12]), 3)][FLine_D] + [names[teami[1]][12:18][i:i + 2] for i in range(0, len(names[teami[1]][12:18]), 2)][DPair_D]
-            
-            # Get probability of scoring chance
-            # Convert all stats to per second
-            def getCurPred(playerStats_relative,x,curStat,homeOrAway):
-                try:
-                    return playerStats_relative['EV' + homeOrAway].loc[x][curStat + 'adjpermin']
-                except:
-                    #print(x)
-                    return np.nanmedian(playerStats_relative['EV' + homeOrAway][curStat + 'adjpermin']) - np.std(playerStats_relative['EV' + homeOrAway][curStat + 'adjpermin'])
-            
-            # Offensive Stat
-            CFStat = np.mean([getCurPred(playerStats_relative,x,dangeri + 'CF',teami[0])/60 for x in playersOnIce_O])
-            # Defensive Stat of Opposition
-            CAStat = np.mean([getCurPred(playerStats_relative,x,dangeri + 'CA',teami[1])/60 for x in playersOnIce_D])
-            # Average Offensive and Defensive Stats
-            ProbSCOccurs = np.mean([CFStat,CAStat])
-            
-            # Simulate to determine how many scoring chances occur
-            numSC = np.sum(np.random.choice([0,1], size=secondsOfMatchup, replace=True, p=[1-ProbSCOccurs,ProbSCOccurs]))
-            if numSC > 0:
-                # There was at least one scoring chance so calculate probability of scoring on each scoring chance
-                def getCurProb(playerStats_relative,x,curStat,homeOrAway):
-                    try:
-                        return playerStats_relative['EV' + homeOrAway].loc[x][curStat]
-                    except:
-                        #print(x)
-                        return np.nanmedian(playerStats_relative['EV' + homeOrAway][curStat]) - np.std(playerStats_relative['EV' + homeOrAway][curStat])
-                        
-                
-                # Offense Goal For Probability
-                GFProbOff = np.mean([getCurProb(playerStats_relative,x,dangeri + '_SC_prob_off',teami[0]) for x in playersOnIce_O])
-                # Defense Goal Allowed Probability
-                GAProbDef = np.mean([getCurProb(playerStats_relative,x,dangeri + '_SC_prob_def',teami[1]) for x in playersOnIce_D])
-                # Average Offensive and Defensive Stats
-                ProbGoalOccurs = np.mean([GFProbOff,GAProbDef])
-            
-                # Simulate whether each scoring chance results in a goal
-                numGoals = np.sum(np.random.choice([0,1], size=numSC, replace=True, p=[1-ProbGoalOccurs,ProbGoalOccurs])[0])
-                # Populate Array with Results
-                goalCounter[teami[0] + dangeri] = goalCounter[teami[0] + dangeri] + numGoals
+for i in range(0,10):
+    ## EVEN STRENGTH SIMULATION
+    #start = time.time()
+    #print('EVEN STRENGTH')
+    # Calculate Proportion of time that each line is on the ice
+    def propTOIByLine(perTOI,numPlayers):
+        TOIByLine = [perTOI[i:i + numPlayers] for i in range(0, len(perTOI), numPlayers)]
+        avg_TOIBYLine = [np.mean(x) for x in TOIByLine]
+        prop_TOIByLine = [x/(np.sum(avg_TOIBYLine)) for x in avg_TOIBYLine]
+        return prop_TOIByLine
     
-
-# Proportion of PP Time given to Each PP Unit
-PPUnitProportion = [0.70,0.30]
-PKUnitProportion = [0.70,0.30]
-
-secondsForPPUnit = int(round((PP_TOI_pred_H*PPUnitProportion[0])*60))
-
-# Get PP Units
-PPUnits = dict()
-PPUnits[0] = names['H'][18:23]
-PPUnits[1] = names['H'][23:28]
-
-# Determine PK units
-PKTOI_byPlayer = TOIPercent('PK',names['A'])
-PK_F = [x for i, x in enumerate(names['A'][0:12]) if i in [x[1] for x in sorted( [(x,i) for (i,x) in enumerate(PKTOI_byPlayer[0])], reverse=True )[:4]]]
-PK_D = [x for i, x in enumerate(names['A'][12:18]) if i in [x[1] for x in sorted( [(x,i) for (i,x) in enumerate(PKTOI_byPlayer[1])], reverse=True )[:4]]]
-PKUnits = dict()
-PKUnits[0] = PK_F[0:2] + PK_D[0:2]
-PKUnits[1] = PK_F[2:4] + PK_D[2:4]
-
-        
-for teami in [['H','A'],['A','H']]:
-    if teami[0] == 'H': timeFactor = PP_TOI_pred_H
-    else: timeFactor = PP_TOI_pred_A
-    totalSituationalSeconds = int(round(timeFactor*60))
-    for dangeri in ['HD','MD','LD']:
-        for PPUnit,PKUnit in list(itertools.product([0,1],[0,1])):
-            # Total time on ice for particular PPUnit/PKUnit Matchup
-            TOIForMatchup = totalSituationalSeconds*PPUnitProportion[PPUnit]*PKUnitProportion[PKUnit]
-            secondsOfMatchup = int(round(TOIForMatchup))
-            
-            # Get Players on Ice for Each Team
-            playersOnIce_O = PPUnits[PPUnit]
-            playersOnIce_D = PPUnits[PPUnit]
-            
-            # Get probability of scoring chance
-            # Convert all stats to per second
-            def getCurPred(playerStats_relative,PPorPK,x,curStat,homeOrAway):
-                try:
-                    return playerStats_relative[PPorPK + homeOrAway].loc[x][curStat + 'adjpermin']
-                except:
-                    #print(x)
-                    return np.nanmedian(playerStats_relative[PPorPK + homeOrAway][curStat + 'adjpermin']) - np.std(playerStats_relative[PPorPK + homeOrAway][curStat + 'adjpermin'])
-            
-            # Offensive Stat
-            CFStat = np.mean([getCurPred(playerStats_relative,'PP',x,dangeri + 'CF',teami[0])/60 for x in playersOnIce_O])
-            # Defensive Stat of Opposition
-            CAStat = np.mean([getCurPred(playerStats_relative,'PK',x,dangeri + 'CA',teami[1])/60 for x in playersOnIce_D])
-            # Average Offensive and Defensive Stats
-            ProbSCOccurs = np.mean([CFStat,CAStat])
-            
-            # Simulate to determine how many scoring chances occur
-            numSC = np.sum(np.random.choice([0,1], size=secondsOfMatchup, replace=True, p=[1-ProbSCOccurs,ProbSCOccurs]))
-            if numSC > 0:
-                # There was at least one scoring chance so calculate probability of scoring on each scoring chance
-                def getCurProb(playerStats_relative,PPorPK,x,curStat,homeOrAway):
-                    try:
-                        return playerStats_relative[PPorPK + homeOrAway].loc[x][curStat]
-                    except:
-                        #print(x)
-                        return np.nanmedian(playerStats_relative[PPorPK + homeOrAway][curStat]) - np.std(playerStats_relative[PPorPK + homeOrAway][curStat])
-                        
-                
-                # Offense Goal For Probability
-                GFProbOff = np.mean([getCurProb(playerStats_relative,'PP',x,dangeri + '_SC_prob_off',teami[0]) for x in playersOnIce_O])
-                # Defense Goal Allowed Probability
-                GAProbDef = np.mean([getCurProb(playerStats_relative,'PK',x,dangeri + '_SC_prob_def',teami[1]) for x in playersOnIce_D])
-                # Average Offensive and Defensive Stats
-                ProbGoalOccurs = np.mean([GFProbOff,GAProbDef])
-            
-                # Simulate whether each scoring chance results in a goal
-                numGoals = np.sum(np.random.choice([0,1], size=numSC, replace=True, p=[1-ProbGoalOccurs,ProbGoalOccurs])[0])
-                # Populate Array with Results
-                goalCounter[teami[0] + dangeri] = goalCounter[teami[0] + dangeri] + numGoals
-            
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-'''
-
-goalCounter = dict()
-for curSituation in list(itertools.product(['HD','MD','LD'],['H','A'])):
-    goalCounter[curSituation[1] + curSituation[0]] = 0
-    
-for i in range(0,int(round(EV_TOI_pred*60))):
-    print(i)
-
-    # Given situation, determine who is on the ice for each team
-    playersOnIce_H = list(np.random.choice(names['H'][0:12], size=3, replace=False, p=player_TOIPerc_F_H)) + list(np.random.choice(names['H'][12:18], size=2, replace=False, p=player_TOIPerc_D_H))
-    playersOnIce_A = list(np.random.choice(names['A'][0:12], size=3, replace=False, p=player_TOIPerc_F_A)) + list(np.random.choice(names['A'][12:18], size=2, replace=False, p=player_TOIPerc_D_A))
+    propTOIEVH_F = propTOIByLine(player_TOIPerc_F_H,3)
+    propTOIEVA_F = propTOIByLine(player_TOIPerc_F_A,3)
+    propTOIEVH_D = propTOIByLine(player_TOIPerc_D_H,2)
+    propTOIEVA_D = propTOIByLine(player_TOIPerc_D_A,2)
     
     
-    # Get probability of scoring chance for each team given situational factors
-    # Convert all stats to per second
-    def getCurPred(playerStats_relative,x,curStat,homeOrAway):
-        try:
-            return playerStats_relative['EV' + homeOrAway].loc[x][curStat + 'adjpermin']
-        except:
-            #print(x)
-            return np.nanmedian(playerStats_relative['EV' + homeOrAway][curStat + 'adjpermin']) - np.std(playerStats_relative['EV' + homeOrAway][curStat + 'adjpermin'])
+    goalCounter = dict()
+    for curSituation in list(itertools.product(['HD','MD','LD'],['H','A'])):
+        goalCounter[curSituation[1] + curSituation[0]] = 0
     
-    for teami in ['H','A']:
-        if teami == 'H': teamOffDef = ['H','A']
-        else: teamOffDef = ['A','H']
-        
-        
+    
+    for teami in [['H','A'],['A','H']]:
+        if teami[0] == 'H': linepropArray = [propTOIEVH_F,propTOIEVH_D,propTOIEVA_F,propTOIEVA_D]
+        else: linepropArray = [propTOIEVA_F,propTOIEVA_D,propTOIEVH_F,propTOIEVH_D]
+        totalSituationalSeconds = int(round(EV_TOI_pred*60))
         for dangeri in ['HD','MD','LD']:
-            # Offensive Stat
-            CFStat = np.mean([getCurPred(playerStats_relative,x,dangeri + 'CF',teamOffDef[0])/60 for x in playersOnIce_H])
-            # Defensive Stat of Opposition
-            CAStat = np.mean([getCurPred(playerStats_relative,x,dangeri + 'CA',teamOffDef[1])/60 for x in playersOnIce_A])
-            # Average Offensive and Defensive Stats
-            ProbSCOccurs = np.mean([CFStat,CAStat])
-            
-            # Simulate whether a scoring chance happens or not
-            DoesSCOccur = np.random.choice([0,1], size=1, replace=True, p=[1-ProbSCOccurs,ProbSCOccurs])[0]
-            
-            if DoesSCOccur == 1:
-                # There was a scoring chance so calculate probability of scoring
-                def getCurProb(playerStats_relative,x,curStat,homeOrAway):
+            for FLine_O,DPair_O,FLine_D,DPair_D in list(itertools.product([0,1,2,3],[0,1,2],[0,1,2,3],[0,1,2])):
+                # Total time on ice for particular line/dpair matchup
+                TOIForMatchup = ((((totalSituationalSeconds*linepropArray[0][FLine_O])*(linepropArray[1][DPair_O]))*(linepropArray[2][FLine_D]))*(linepropArray[3][DPair_D]))
+                secondsOfMatchup = int(round(TOIForMatchup))
+                
+                # Get Players on Ice for Each Team
+                playersOnIce_O = [names[teami[0]][0:12][i:i + 3] for i in range(0, len(names[teami[0]][0:12]), 3)][FLine_O] + [names[teami[0]][12:18][i:i + 2] for i in range(0, len(names[teami[0]][12:18]), 2)][DPair_O]
+                playersOnIce_D = [names[teami[1]][0:12][i:i + 3] for i in range(0, len(names[teami[1]][0:12]), 3)][FLine_D] + [names[teami[1]][12:18][i:i + 2] for i in range(0, len(names[teami[1]][12:18]), 2)][DPair_D]
+                
+                # Get probability of scoring chance
+                # Convert all stats to per second
+                def getCurPred(playerStats_relative,x,curStat,homeOrAway):
                     try:
-                        return playerStats_relative['EV' + homeOrAway].loc[x][curStat]
+                        return playerStats_relative['EV' + homeOrAway].loc[x][curStat + 'adjpermin']
                     except:
                         #print(x)
-                        return np.nanmedian(playerStats_relative['EV' + homeOrAway][curStat]) - np.std(playerStats_relative['EV' + homeOrAway][curStat])
-                        
+                        return np.nanmedian(playerStats_relative['EV' + homeOrAway][curStat + 'adjpermin']) - np.std(playerStats_relative['EV' + homeOrAway][curStat + 'adjpermin'])
                 
-                # Offense Goal For Probability
-                GFProbOff = np.mean([getCurProb(playerStats_relative,x,dangeri + '_SC_prob_off',teamOffDef[0]) for x in playersOnIce_H])
-                # Defense Goal Allowed Probability
-                GAProbDef = np.mean([getCurProb(playerStats_relative,x,dangeri + '_SC_prob_def',teamOffDef[1]) for x in playersOnIce_A])
-                
+                # Offensive Stat
+                CFStat = np.mean([getCurPred(playerStats_relative,x,dangeri + 'CF',teami[0])/60 for x in playersOnIce_O])
+                # Defensive Stat of Opposition
+                CAStat = np.mean([getCurPred(playerStats_relative,x,dangeri + 'CA',teami[1])/60 for x in playersOnIce_D])
                 # Average Offensive and Defensive Stats
-                ProbGoalOccurs = np.mean([GFProbOff,GAProbDef])
-            
-                # Simulate whether the scoring chance results in a goal
-                DoesGoalOccur = np.random.choice([0,1], size=1, replace=True, p=[1-ProbGoalOccurs,ProbGoalOccurs])[0]
-                if DoesGoalOccur == 1: 
-                    goalCounter[teamOffDef[0] + dangeri] += 1
+                ProbSCOccurs = np.mean([CFStat,CAStat])
+                
+                # Simulate to determine how many scoring chances occur
+                numSC = np.sum(np.random.choice([0,1], size=secondsOfMatchup, replace=True, p=[1-ProbSCOccurs,ProbSCOccurs]))
+                if numSC > 0:
+                    # There was at least one scoring chance so calculate probability of scoring on each scoring chance
+                    def getCurProb(playerStats_relative,x,curStat,homeOrAway):
+                        try:
+                            return playerStats_relative['EV' + homeOrAway].loc[x][curStat]
+                        except:
+                            #print(x)
+                            return np.nanmedian(playerStats_relative['EV' + homeOrAway][curStat]) - np.std(playerStats_relative['EV' + homeOrAway][curStat])
+                            
+                    
+                    # Offense Goal For Probability
+                    GFProbOff = np.mean([getCurProb(playerStats_relative,x,dangeri + '_SC_prob_off',teami[0]) for x in playersOnIce_O])
+                    # Defense Goal Allowed Probability
+                    GAProbDef = np.mean([getCurProb(playerStats_relative,x,dangeri + '_SC_prob_def',teami[1]) for x in playersOnIce_D])
+                    # Average Offensive and Defensive Stats
+                    ProbGoalOccurs = np.mean([GFProbOff,GAProbDef])
+                    
+                    # Adjust Probability of Goal based on Opposing Goalie Stat
+                    def adjByGoalieStat(dangeri,goalieStats,ProbGoalOccurs,whichGoalie,curSituation):
+                        try:
+                            return ProbGoalOccurs - (goalieStats[curSituation].loc[goalieStats[whichGoalie]][dangeri + 'SV%']*ProbGoalOccurs)
+                        except: # If Goalie has not played then use median of stat
+                            return ProbGoalOccurs - ( ( np.median( goalieStats[curSituation][dangeri + 'SV%'] ) - np.std( goalieStats[curSituation][dangeri + 'SV%'] ))*ProbGoalOccurs )
+                            print('Error: ' + whichGoalie)
+                    
+                    if teami[0] == 'H': 
+                        ProbGoalOccurs = adjByGoalieStat(dangeri,goalieStats,ProbGoalOccurs,'AwayGoalie','EV')
+                    elif teami[0] == 'A': 
+                        ProbGoalOccurs = adjByGoalieStat(dangeri,goalieStats,ProbGoalOccurs,'HomeGoalie','EV')
+                    
+                    # Simulate whether each scoring chance results in a goal
+                    numGoals = np.sum(np.random.choice([0,1], size=numSC, replace=True, p=[1-ProbGoalOccurs,ProbGoalOccurs])[0])
+                    # Populate Array with Results
+                    goalCounter[teami[0] + dangeri] = goalCounter[teami[0] + dangeri] + numGoals
+        
+    #end = time.time()
+    #print(end-start)
+    # Proportion of PP Time given to Each PP Unit
+    PPUnitProportion = [0.70,0.30]
+    PKUnitProportion = [0.70,0.30]
+    #start = time.time()
+    for teami in [['H','A'],['A','H']]:
+        # Get PP Units from DFO Scraps
+        PPUnits = dict()
+        PPUnits[0] = names[teami[0]][18:23]
+        PPUnits[1] = names[teami[0]][23:28]
+        
+        # Determine PK units
+        PKTOI_byPlayer = TOIPercent('PK',names[teami[1]])
+        PK_F = [x for i, x in enumerate(names[teami[1]][0:12]) if i in [x[1] for x in sorted( [(x,i) for (i,x) in enumerate(PKTOI_byPlayer[0])], reverse=True )[:4]]]
+        PK_D = [x for i, x in enumerate(names[teami[1]][12:18]) if i in [x[1] for x in sorted( [(x,i) for (i,x) in enumerate(PKTOI_byPlayer[1])], reverse=True )[:4]]]
+        PKUnits = dict()
+        PKUnits[0] = PK_F[0:2] + PK_D[0:2]
+        PKUnits[1] = PK_F[2:4] + PK_D[2:4]
+        
+        
+        if teami[0] == 'H': 
+            timeFactor = PP_TOI_pred_H
+            #print('PP_H')
+        else: 
+            #print('PP_A')
+            timeFactor = PP_TOI_pred_A
+        totalSituationalSeconds = int(round(timeFactor*60))
+        for dangeri in ['HD','MD','LD']:
+            for PPUnit,PKUnit in list(itertools.product([0,1],[0,1])):
+                # Total time on ice for particular PPUnit/PKUnit Matchup
+                TOIForMatchup = totalSituationalSeconds*PPUnitProportion[PPUnit]*PKUnitProportion[PKUnit]
+                secondsOfMatchup = int(round(TOIForMatchup))
+                
+                # Get Players on Ice for Each Team
+                playersOnIce_O = PPUnits[PPUnit]
+                playersOnIce_D = PPUnits[PPUnit]
+                
+                # Get probability of scoring chance
+                # Convert all stats to per second
+                def getCurPred(playerStats_relative,PPorPK,x,curStat,homeOrAway):
+                    try:
+                        return playerStats_relative[PPorPK + homeOrAway].loc[x][curStat + 'adjpermin']
+                    except:
+                        #print(x)
+                        return np.nanmedian(playerStats_relative[PPorPK + homeOrAway][curStat + 'adjpermin']) - np.std(playerStats_relative[PPorPK + homeOrAway][curStat + 'adjpermin'])
+                
+                # Offensive Stat
+                CFStat = np.mean([getCurPred(playerStats_relative,'PP',x,dangeri + 'CF',teami[0])/60 for x in playersOnIce_O])
+                # Defensive Stat of Opposition
+                CAStat = np.mean([getCurPred(playerStats_relative,'PK',x,dangeri + 'CA',teami[1])/60 for x in playersOnIce_D])
+                # Average Offensive and Defensive Stats
+                ProbSCOccurs = np.mean([CFStat,CAStat])
+                
+                # Simulate to determine how many scoring chances occur
+                numSC = np.sum(np.random.choice([0,1], size=secondsOfMatchup, replace=True, p=[1-ProbSCOccurs,ProbSCOccurs]))
+                if numSC > 0:
+                    # There was at least one scoring chance so calculate probability of scoring on each scoring chance
+                    def getCurProb(playerStats_relative,PPorPK,x,curStat,homeOrAway):
+                        try:
+                            return playerStats_relative[PPorPK + homeOrAway].loc[x][curStat]
+                        except:
+                            #print(x)
+                            return np.nanmedian(playerStats_relative[PPorPK + homeOrAway][curStat]) - np.std(playerStats_relative[PPorPK + homeOrAway][curStat])
+                            
+                    
+                    # Offense Goal For Probability
+                    GFProbOff = np.mean([getCurProb(playerStats_relative,'PP',x,dangeri + '_SC_prob_off',teami[0]) for x in playersOnIce_O])
+                    # Defense Goal Allowed Probability
+                    GAProbDef = np.mean([getCurProb(playerStats_relative,'PK',x,dangeri + '_SC_prob_def',teami[1]) for x in playersOnIce_D])
+                    # Average Offensive and Defensive Stats
+                    ProbGoalOccurs = np.mean([GFProbOff,GAProbDef])
+                
+                    # Simulate whether each scoring chance results in a goal
+                    numGoals = np.sum(np.random.choice([0,1], size=numSC, replace=True, p=[1-ProbGoalOccurs,ProbGoalOccurs])[0])
+                    # Populate Array with Results
+                    goalCounter[teami[0] + dangeri] = goalCounter[teami[0] + dangeri] + numGoals
+                
+    print(goalCounter)
+    #end = time.time()
+    #print(end-start)
+
+
+
+
+
+
+
 
 
 
@@ -341,176 +283,7 @@ for i in range(0,int(round(EV_TOI_pred*60))):
 
 '''
 
-'''
 
-
-# Sim whether a high-danger scoring chance occurs
-k = 0
-counter= 0
-for y in range(0,int(round(EV_TOI_pred*60))):
-    d = np.random.choice([0,1], size=1, replace=True, p=[1-HDCF_H_Prob_Adj,HDCF_H_Prob_Adj])
-    if d == 1:
-        k += 1
-
-print(k)
-
-
-'''
-
-
-
-
-'''
-
-
-# CALCULATE PREDICTED RELATIVE SCORING CHANCES
-print('SC_PRED')
-SC_pred_relative = dict()
-for curSituation in list(itertools.product(['HD','MD','LD'],['EV','PP','PK'],['H','A'],['CF','CA'])):
-    if curSituation[1] == 'EV': timeFactor = EV_TOI_pred
-    elif (curSituation[1] == 'PP' and curSituation[2] == 'H') or (curSituation[1] == 'PK' and curSituation[2] == 'A'): timeFactor = PP_TOI_pred_H
-    elif (curSituation[1] == 'PP' and curSituation[2] == 'A') or (curSituation[1] == 'PK' and curSituation[2] == 'H'): timeFactor = PP_TOI_pred_A
-    
-    player_TOIPerc = TOIPercent(curSituation[1],timeFactor,names[curSituation[2]])
-    def getCurPred(curSituation,playerStats_relative,x):
-        try:
-            return playerStats_relative[curSituation[1] + curSituation[2]].loc[x][curSituation[0] + curSituation[3] + 'adjpermin']
-        except:
-            print(x)
-            print(curSituation)
-            return np.median(playerStats_relative[curSituation[1] + curSituation[2]][curSituation[0] + curSituation[3] + 'adjpermin']) - np.std(playerStats_relative[curSituation[1] + curSituation[2]][curSituation[0] + curSituation[3] + 'adjpermin'])
-    
-    SC_pred_relative[curSituation[0] + curSituation[1] + curSituation[2] + curSituation[3]] = [getCurPred(curSituation,playerStats_relative,x) for x in names[curSituation[2]][0:18]]
-    # Get weighted scoring chances based on projected mins per player in current situation
-    break
-    SC_pred_relative[curSituation[0] + curSituation[1] + curSituation[2] + curSituation[3]] = (np.sum([a * b for a, b in zip(player_TOIPerc, SC_pred_relative[curSituation[0] + curSituation[1] + curSituation[2] + curSituation[3]])])/np.sum(player_TOIPerc))*timeFactor
-    
-
-
-'''
-
-
-
-
-
-
-# For every second
-# Simulate players on the ice for each team
-    
-
-
-
-
-
-
-
-# Simulate whether each team has a corsi for based on CF/CA
-# If there is a corsi for, simulate who takes it
-# Simulate whether it's a goal based on probability
-# Include opposing goalie in probability of scoring % calculation
-
-
-
-
-
-
-
-
-
-
-
-
-'''
-
-
-
-
-
-
-
-# CALCULATE PREDICTED RELATIVE SCORING CHANCES
-print('SC_PRED')
-SC_pred_relative = dict()
-for curSituation in list(itertools.product(['HD','MD','LD'],['EV','PP','PK'],['H','A'],['CF','CA'])):
-    if curSituation[1] == 'EV': timeFactor = EV_TOI_pred
-    elif (curSituation[1] == 'PP' and curSituation[2] == 'H') or (curSituation[1] == 'PK' and curSituation[2] == 'A'): timeFactor = PP_TOI_pred_H
-    elif (curSituation[1] == 'PP' and curSituation[2] == 'A') or (curSituation[1] == 'PK' and curSituation[2] == 'H'): timeFactor = PP_TOI_pred_A
-    
-    player_TOIPerc = TOIPercent(curSituation[1],timeFactor,names[curSituation[2]])
-    def getCurPred(curSituation,playerStats_relative,x):
-        try:
-            return playerStats_relative[curSituation[1] + curSituation[2]].loc[x][curSituation[0] + curSituation[3] + 'adjpermin']
-        except:
-            print(x)
-            print(curSituation)
-            return np.median(playerStats_relative[curSituation[1] + curSituation[2]][curSituation[0] + curSituation[3] + 'adjpermin']) - np.std(playerStats_relative[curSituation[1] + curSituation[2]][curSituation[0] + curSituation[3] + 'adjpermin'])
-    
-    SC_pred_relative[curSituation[0] + curSituation[1] + curSituation[2] + curSituation[3]] = [getCurPred(curSituation,playerStats_relative,x) for x in names[curSituation[2]][0:18]]
-    # Get weighted scoring chances based on projected mins per player in current situation
-    break
-    SC_pred_relative[curSituation[0] + curSituation[1] + curSituation[2] + curSituation[3]] = (np.sum([a * b for a, b in zip(player_TOIPerc, SC_pred_relative[curSituation[0] + curSituation[1] + curSituation[2] + curSituation[3]])])/np.sum(player_TOIPerc))*timeFactor
-    
-
-
-
-SC_pred_compiled_relative = dict()
-for curSituation in list(itertools.product(['HD','MD','LD'],['EV','PP','PK'])):
-    if curSituation[1] == 'PP': adjSituation = 'PK'
-    elif curSituation[1] == 'PK': adjSituation = 'PP'
-    else: adjSituation = 'EV'
-    
-    SC_pred_compiled_relative[curSituation[0] + curSituation[1] + 'H'] = round((SC_pred_relative[curSituation[0] + curSituation[1] + 'HCF'] + SC_pred_relative[curSituation[0] + adjSituation + 'ACA'])/2)
-    SC_pred_compiled_relative[curSituation[0] + curSituation[1] + 'A'] = round((SC_pred_relative[curSituation[0] + curSituation[1] + 'ACF'] + SC_pred_relative[curSituation[0] + adjSituation + 'HCA'])/2)
-
-
-
-print('SC_PROB')
-SC_prob = dict()
-for curSituation in list(itertools.product(['HD','MD','LD'],['EV','PP','PK'],['H','A'],['off','def'])):
-    if curSituation[1] == 'EV': timeFactor = EV_TOI_pred
-    elif (curSituation[1] == 'PP' and curSituation[2] == 'H') or (curSituation[1] == 'PK' and curSituation[2] == 'A'): timeFactor = PP_TOI_pred_H
-    elif (curSituation[1] == 'PP' and curSituation[2] == 'A') or (curSituation[1] == 'PK' and curSituation[2] == 'H'): timeFactor = PP_TOI_pred_A
-    
-    player_TOIPerc = TOIPercent(curSituation[1],timeFactor,names[curSituation[2]])
-    def getCurProb(x,OffOrDef):
-        try:
-            return playerStats_relative[curSituation[1]].loc[x][curSituation[0] + '_SC_prob_' + OffOrDef]
-        except:
-            return np.median(playerStats_relative[curSituation[1]][curSituation[0] + '_SC_prob_' + OffOrDef]) - np.std(playerStats_relative[curSituation[1]][curSituation[0] + '_SC_prob_' + OffOrDef])
-    
-    SC_prob[curSituation[0] + curSituation[1] + curSituation[2] + curSituation[3]] = [getCurProb(x,curSituation[3]) for x in names[curSituation[2]][0:18]]
-    SC_prob[curSituation[0] + curSituation[1] + curSituation[2] + curSituation[3]] = (np.sum([a * b for a, b in zip(player_TOIPerc, SC_prob[curSituation[0] + curSituation[1] + curSituation[2] + curSituation[3]])])/np.sum(player_TOIPerc))
-
-SC_prob_compiled = dict()
-for curSituation in list(itertools.product(['HD','MD','LD'],['EV','PP','PK'])):
-    if curSituation[1] == 'PP': adjSituation = 'PK'
-    elif curSituation[1] == 'PK': adjSituation = 'PP'
-    else: adjSituation = 'EV'
-    SC_prob_compiled[curSituation[0] + curSituation[1] + 'H'] = (SC_prob[curSituation[0] + curSituation[1] + 'Hoff'] + SC_prob[curSituation[0] + adjSituation + 'Adef'])/2
-    SC_prob_compiled[curSituation[0] + curSituation[1] + 'A'] = (SC_prob[curSituation[0] + curSituation[1] + 'Aoff'] + SC_prob[curSituation[0] + adjSituation + 'Hdef'])/2
-
-
-
-
-
-
-
-# ADJUST SCORING PROBABILITY BASED ON OPPOSING GOALIE SV%
-# Assign Stats of Current Goalies
-#goalieStats = assign_stats.assignGoalieStats(goalieStats)
-
-def adjByGoalieStat(curStat,dangeri,goalieStats,SC_prob_compiled,whichGoalie,curSituation):
-    try:
-        SC_prob_compiled[curStat] = SC_prob_compiled[curStat] - (goalieStats[curSituation].loc[goalieStats[whichGoalie]][dangeri + 'SV%']*SC_prob_compiled[curStat])
-    except: # If Goalie has not played then use median of stat
-        SC_prob_compiled[curStat] - ( ( np.median( goalieStats[curSituation][dangeri + 'SV%'] ) - np.std( goalieStats[curSituation][dangeri + 'SV%'] ))*SC_prob_compiled[curStat] )
-        print('Error: ' + whichGoalie)
-    
-for curStat in SC_prob_compiled.keys():
-    # Subtraction in following equation, because if goalie stat if below average you'd increase scoring probability
-    if curStat.endswith('H'):whichGoalie = 'AwayGoalie'
-    elif curStat.endswith('A'):whichGoalie = 'HomeGoalie'
-    adjByGoalieStat(curStat,curStat[:2],goalieStats,SC_prob_compiled,whichGoalie,curStat[2:4])
             
 # ADJUST SCORING PROBABILITY BASED ON REST ADVANTAGE
 for curStat in SC_prob_compiled.keys():
