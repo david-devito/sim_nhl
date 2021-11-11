@@ -2,6 +2,8 @@
 
 ## BASELINE STATS NEED TO BE HOME AND AWAY
 
+## split 4 on 4 time out of total Even Strength TOI
+
 
 # Add paths of additional scripts
 import sys
@@ -36,11 +38,10 @@ gameOverUnder = matchupsInput.loc[curMatchup]['OverUnderVal']
 # HOME TEAM ADJUSTED WIN AND GOAL PROBABILITIES BASED ON REST ADVANTAGE
 restAdj_WP, restAdj_Goals = assorted_minor_functions.restAdvCalc(daysRest_H,daysRest_A)
 
-## GET LINEUP INFORMATION
+## GET LINEUP INFORMATION FROM DFO
 names = dict()
 names['H'] = assorted_minor_functions.getLineup(homeTeam.replace(' ','-').lower())
 names['A'] = assorted_minor_functions.getLineup(awayTeam.replace(' ','-').lower())
-
 
 # MINUTES DISTRIBUTION BY TEAM
 print('MINUTES CALC')
@@ -54,9 +55,9 @@ def calcTeamTOIBySituation(df,team,HorA):
 total_TOI_H, PP_TOI_H, PK_TOI_H = calcTeamTOIBySituation(teamStats,homeTeam,'_H')
 total_TOI_A, PP_TOI_A, PK_TOI_A = calcTeamTOIBySituation(teamStats,awayTeam,'_A')
 
-# Predicted Special Teams TOI
-PP_TOI_pred_H = (PP_TOI_H + PK_TOI_A)/2
-PP_TOI_pred_A = (PP_TOI_A + PK_TOI_H)/2
+# Predicted Situational TOI
+PP_TOI_pred_H = (PP_TOI_H + PK_TOI_A)/2 # Average of Home PP's and Away PK's
+PP_TOI_pred_A = (PP_TOI_A + PK_TOI_H)/2 # Average of Away PP's and Home PK's
 EV_TOI_pred = 60 - PP_TOI_pred_H - PP_TOI_pred_A
 
 # Get TOI% For all skaters - Doesn't yet take into account 4 on 4
@@ -89,7 +90,7 @@ def TOIPercent(curSituation,names):
 player_TOIPerc_F_H, player_TOIPerc_D_H = TOIPercent('EV',names['H'])
 player_TOIPerc_F_A, player_TOIPerc_D_A = TOIPercent('EV',names['A'])
 
-# Calculate Proportion of time that each line is on the ice
+# Calculate Proportion of even strength time that each line is on the ice
 def propTOIByLine(perTOI,numPlayers):
     TOIByLine = [perTOI[i:i + numPlayers] for i in range(0, len(perTOI), numPlayers)]
     avg_TOIBYLine = [np.mean(x) for x in TOIByLine]
