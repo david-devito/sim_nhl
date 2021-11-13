@@ -3,6 +3,8 @@ import itertools
 import requests
 from bs4 import BeautifulSoup
 import re
+import numpy as np
+import pandas as pd
 
 # CALCULATE HOME TEAM REST ADVANTAGE
 def restAdvCalc(daysRest_H,daysRest_A):
@@ -79,8 +81,69 @@ def kellyCalculation(prob1_notie,prob2_notie,awayTeam,homeTeam,odds1,odds2):
     
     return kellyValue_1, kellyValue_2
     
+# Get TOI% For all skaters - Doesn't yet take into account 4 on 4
+def TOIPercent(curSituation,names):
+    TOIPercent = pd.read_csv('input/2020_2021_TOIPercent_' + curSituation + '.csv')
+    # Remove % sign from values
+    TOIPercent['TOI%'] = TOIPercent['TOI%'].apply(lambda x: float(x[:-1]))
+    # Get current Median % to fill players with no data
+    curMedian_F = np.nanmedian(TOIPercent[TOIPercent['Position'] == 'F']['TOI%']) - np.std(TOIPercent[TOIPercent['Position'] == 'F']['TOI%'])
+    curMedian_D = np.nanmedian(TOIPercent[TOIPercent['Position'] == 'D']['TOI%']) - np.std(TOIPercent[TOIPercent['Position'] == 'D']['TOI%'])
+    replaceNameList = [['Tim StÜtzle','Tim Stuetzle'],['Pierre-luc Dubois','Pierre-Luc Dubois'],['Dylan Demelo','Dylan DeMelo'],['Mitch Marner','Mitchell Marner']]
+    for replacei in replaceNameList:
+        TOIPercent = TOIPercent.replace(replacei[0],replacei[1])
+    TOIPercent.set_index('Player',inplace=True)
+    
+    def getCurTOI(curName,TOIPercent,curMedian):
+        try:
+            return TOIPercent.loc[curName]['TOI%']
+        except:
+            return curMedian
+    
+    player_TOIPerc_F = [getCurTOI(x,TOIPercent,curMedian_F) for x in names[0:12]]
+    player_TOIPerc_F = [x/np.sum(player_TOIPerc_F) for x in player_TOIPerc_F]
+    player_TOIPerc_D = [getCurTOI(x,TOIPercent,curMedian_D) for x in names[12:18]]
+    player_TOIPerc_D = [x/np.sum(player_TOIPerc_D) for x in player_TOIPerc_D]
     
     
+    return player_TOIPerc_F, player_TOIPerc_D
+
+# CALCULATE PROPORTION OF EVEN STRENGTH TIME THAT EACH LINE AND DPAIR IS ON THE ICE
+def get_EV_TOI_dist(names):
     
+    player_TOIPerc_F_H, player_TOIPerc_D_H = TOIPercent('EV',names['H'])
+    player_TOIPerc_F_A, player_TOIPerc_D_A = TOIPercent('EV',names['A'])
+    
+    # Calculate Proportion of even strength time that each line is on the ice
+    def propTOIByLine(perTOI,numPlayers):
+        TOIByLine = [perTOI[i:i + numPlayers] for i in range(0, len(perTOI), numPlayers)]
+        avg_TOIBYLine = [np.mean(x) for x in TOIByLine]
+        prop_TOIByLine = [x/(np.sum(avg_TOIBYLine)) for x in avg_TOIBYLine]
+        return prop_TOIByLine
+    
+    propTOIEVH_F = propTOIByLine(player_TOIPerc_F_H,3)
+    propTOIEVA_F = propTOIByLine(player_TOIPerc_F_A,3)
+    propTOIEVH_D = propTOIByLine(player_TOIPerc_D_H,2)
+    propTOIEVA_D = propTOIByLine(player_TOIPerc_D_A,2)
+    
+    return propTOIEVH_F, propTOIEVA_F, propTOIEVH_D, propTOIEVA_D
+
+def TotalTOIBySituation(teamStats,homeTeam,awayTeam):
+
+    def TeamLevelTOIBySituation(df,team,HorA):
+        # Situational TOI Ratios - Needs to be ratios as OT causes TOI to go over 60 mins per game
+        total_TOI = df['EV_cnts' + HorA].loc[team]['TOI'] + df['PP_cnts' + HorA].loc[team]['TOI'] + df['PK_cnts' + HorA].loc[team]['TOI']
+        PP_TOI = (df['PP_cnts' + HorA].loc[team]['TOI']/total_TOI)*60
+        PK_TOI = (df['PK_cnts' + HorA].loc[team]['TOI']/total_TOI)*60
+        return total_TOI, PP_TOI, PK_TOI
+    
+    total_TOI_H, PP_TOI_H, PK_TOI_H = TeamLevelTOIBySituation(teamStats,homeTeam,'_H')
+    total_TOI_A, PP_TOI_A, PK_TOI_A = TeamLevelTOIBySituation(teamStats,awayTeam,'_A')
+    
+    PP_TOI_pred_H = (PP_TOI_H + PK_TOI_A)/2 # Average of Home PP's and Away PK's
+    PP_TOI_pred_A = (PP_TOI_A + PK_TOI_H)/2 # Average of Away PP's and Home PK's
+    EV_TOI_pred = 60 - PP_TOI_pred_H - PP_TOI_pred_A
+    
+    return EV_TOI_pred, PP_TOI_pred_H, PP_TOI_pred_A
     
     
