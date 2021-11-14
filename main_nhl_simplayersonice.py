@@ -124,8 +124,8 @@ for teami in [['H','A'],['A','H']]:
 
 compiled_outcomes_H = []
 compiled_outcomes_A = []
-
-numSims = 300
+start = time.time()
+numSims = 1
 for i in range(0,numSims):
     ## EVEN STRENGTH SIMULATION
     
@@ -154,7 +154,7 @@ for i in range(0,numSims):
                     # Populate Array with Results
                     goalCounter[teami[0] + dangeri] = goalCounter[teami[0] + dangeri] + numGoals
     
-    '''
+    
     # Proportion of PP Time given to Each PP Unit
     PPUnitProportion = [0.70,0.30]
     PKUnitProportion = [0.70,0.30]
@@ -224,7 +224,7 @@ for i in range(0,numSims):
                     # Defense Goal Allowed Probability
                     GAProbDef = np.mean([getCurProb(playerStats_relative,'PK',x,dangeri + '_SC_prob_def',teami[1]) for x in playersOnIce_D])
                     # Average Offensive and Defensive Stats
-                    ProbGoalOccurs = np.mean([GFProbOff,GAProbDef])
+                    ProbGoalOccurs_PP = np.mean([GFProbOff,GAProbDef])
                 
                     # Adjust Probability of Goal based on Opposing Goalie Stat
                     # Use Opposing goalie SV% on PK, They would be facing a PP
@@ -236,24 +236,22 @@ for i in range(0,numSims):
                             print('Error: ' + whichGoalie)
                     
                     if teami[0] == 'H': 
-                        ProbGoalOccurs = adjByGoalieStat(dangeri,goalieStats,ProbGoalOccurs,'AwayGoalie','PK')
+                        ProbGoalOccurs_PP = adjByGoalieStat(dangeri,goalieStats,ProbGoalOccurs_PP,'AwayGoalie','PK')
                         # Adjust Goal Probability based on Rest Adjustment - Add to Home Team Probability
-                        ProbGoalOccurs = ProbGoalOccurs + (ProbGoalOccurs*restAdj_Goals)
+                        ProbGoalOccurs_PP = ProbGoalOccurs_PP + (ProbGoalOccurs_PP*restAdj_Goals)
                     elif teami[0] == 'A': 
-                        ProbGoalOccurs = adjByGoalieStat(dangeri,goalieStats,ProbGoalOccurs,'HomeGoalie','PK')
+                        ProbGoalOccurs_PP = adjByGoalieStat(dangeri,goalieStats,ProbGoalOccurs_PP,'HomeGoalie','PK')
                         # Adjust Goal Probability based on Rest Adjustment - Subtract from Away Team Probability
-                        ProbGoalOccurs = ProbGoalOccurs - (ProbGoalOccurs*restAdj_Goals)
+                        ProbGoalOccurs_PP = ProbGoalOccurs_PP - (ProbGoalOccurs_PP*restAdj_Goals)
                         
                         
                 
                     # Simulate whether each scoring chance results in a goal
-                    numGoals = np.sum(np.random.choice([0,1], size=numSC, replace=True, p=[1-ProbGoalOccurs,ProbGoalOccurs])[0])
+                    numGoals = np.sum(np.random.choice([0,1], size=numSC, replace=True, p=[1-ProbGoalOccurs_PP,ProbGoalOccurs_PP])[0])
                     # Populate Array with Results
                     goalCounter[teami[0] + dangeri] = goalCounter[teami[0] + dangeri] + numGoals
-                
-    print(goalCounter)
-    #end = time.time()
-    #print(end-start)
+    
+    #print(goalCounter)
     
     
     # Add Goals for Each Team to Compiled Outcomes Arrays
@@ -269,36 +267,14 @@ assorted_plots.plotPredictedTeamGoals(compiled_outcomes_H,compiled_outcomes_A,ho
 
 
 # Calculated Win and Tie Probabilities
-winProb = [x1 - x2 for (x1, x2) in zip(compiled_outcomes_H, compiled_outcomes_A)]
-winProb_H = round((len([x for x in winProb if x > 0])/numSims)*100,2)
-winProb_A = round((len([x for x in winProb if x < 0])/numSims)*100,2)
-winProb_T = round((len([x for x in winProb if x == 0])/numSims)*100,2)
-
-print()
-print(f"{awayTeam} = {winProb_A}%")
-print(f"Tie = {winProb_T}%")
-print(f"{homeTeam} = {winProb_H}%")
-print()
-
-# Calculated Win Probabilities - Excluding Ties
-winProb_H_notie = round(winProb_H + (winProb_H/(winProb_H + winProb_A))*winProb_T,2)
-winProb_A_notie = round(winProb_A + (winProb_A/(winProb_H + winProb_A))*winProb_T,2)
-print('When No Tie Possible')
-print(f"{awayTeam} = {winProb_A_notie}%")
-print(f"{homeTeam} = {winProb_H_notie}%")
-print()
-
-
+winProb_H_notie, winProb_A_notie = assorted_minor_functions.calcWinProb(compiled_outcomes_H,compiled_outcomes_A,numSims,awayTeam,homeTeam)
 
 
 # Kelly Criterion Formula
-kellyValue_H, kellyValue_A = assorted_minor_functions.kellyCalculation(winProb_H_notie,winProb_A_notie,awayTeam,homeTeam,matchupsInput.loc[curMatchup]['HomeOdds'],matchupsInput.loc[curMatchup]['AwayOdds'])
-print('Kelly Values')
-print(f"{awayTeam} = {round(kellyValue_A*100,2)}%")
-print(f"{homeTeam} = {round(kellyValue_H*100,2)}%")
-print()
+assorted_minor_functions.kellyCalculation(winProb_H_notie,winProb_A_notie,curMatchup['HomeOdds'],curMatchup['AwayOdds'],homeTeam,awayTeam)
 
 
+'''
 # Calculated Over/Under Probabilities
 overUnderTotal = [x1 + x2 for (x1, x2) in zip(compiled_outcomes_H, compiled_outcomes_A)]
 overUnderProb_over = round((len([x for x in overUnderTotal if x > gameOverUnder])/numSims)*100,2)
@@ -314,13 +290,13 @@ print(f"Under = {overUnder_under_notie}%")
 print()
 
 # Kelly Criterion Formula
-kellyValue_O, kellyValue_U = assorted_minor_functions.kellyCalculation(overUnder_over_notie,overUnder_under_notie,awayTeam,homeTeam,matchupsInput.loc[curMatchup]['OverOdds'],matchupsInput.loc[curMatchup]['UnderOdds'])
+kellyValue_O, kellyValue_U = assorted_minor_functions.kellyCalculation(overUnder_over_notie,overUnder_under_notie,awayTeam,homeTeam,curMatchup['OverOdds'],curMatchup['UnderOdds'])
 print('Kelly Values')
 print(f"Over = {round(kellyValue_O*100,2)}%")
 print(f"Under = {round(kellyValue_U*100,2)}%")
 print()
-
+'''
 
 #PRINT LINEUPS
 assorted_minor_functions.printProjLineups(homeTeam,awayTeam,names)
-'''
+

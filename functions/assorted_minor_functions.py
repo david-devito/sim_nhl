@@ -64,7 +64,7 @@ def printProjLineups(homeTeam,awayTeam,names):
         if teamPlayer[1] == numArray[-1]: print()
     
 # CALCULATE KELLY VALUE
-def kellyCalculation(prob1_notie,prob2_notie,awayTeam,homeTeam,odds1,odds2):
+def kellyCalculation(prob1_notie,prob2_notie,odds1,odds2,printName1,printName2):
     kellyMultiplier = 1
     # Convert odds to Decimal Odds
     def convertOdds(odds):
@@ -79,7 +79,11 @@ def kellyCalculation(prob1_notie,prob2_notie,awayTeam,homeTeam,odds1,odds2):
     kellyValue_1 = ((odds1 - 1) * (prob1_notie/100) - (1 - (prob1_notie/100))) / (odds1 - 1) * kellyMultiplier
     kellyValue_2 = ((odds2 - 1) * (prob2_notie/100) - (1 - (prob2_notie/100))) / (odds2 - 1) * kellyMultiplier
     
-    return kellyValue_1, kellyValue_2
+    print('Kelly Values')
+    print(f"{printName1} = {round(kellyValue_1*100,2)}%")
+    print(f"{printName2} = {round(kellyValue_2*100,2)}%")
+    print()
+    
     
 # Get TOI% For all skaters - Doesn't yet take into account 4 on 4
 def TOIPercent(curSituation,names):
@@ -146,4 +150,34 @@ def TotalTOIBySituation(teamStats,homeTeam,awayTeam):
     
     return EV_TOI_pred, PP_TOI_pred_H, PP_TOI_pred_A
     
+def calcWinProb(compiled_outcomes_H,compiled_outcomes_A,numSims,awayTeam,homeTeam):
+    # Calculated Win and Tie Probabilities
+    winProb = [x1 - x2 for (x1, x2) in zip(compiled_outcomes_H, compiled_outcomes_A)]
+    winProb_H = round((len([x for x in winProb if x > 0])/numSims)*100,2)
+    winProb_A = round((len([x for x in winProb if x < 0])/numSims)*100,2)
+    winProb_T = round((len([x for x in winProb if x == 0])/numSims)*100,2)
     
+    print()
+    print(f"{awayTeam} = {winProb_A}%")
+    print(f"Tie = {winProb_T}%")
+    print(f"{homeTeam} = {winProb_H}%")
+    print()
+    
+    # Calculated Win Probabilities - Excluding Ties
+    winProb_H_notie = round(winProb_H + (winProb_H/(winProb_H + winProb_A))*winProb_T,2)
+    winProb_A_notie = round(winProb_A + (winProb_A/(winProb_H + winProb_A))*winProb_T,2)
+    print('When No Tie Possible')
+    print(f"{awayTeam} = {winProb_A_notie}%")
+    print(f"{homeTeam} = {winProb_H_notie}%")
+    print()
+    
+    return winProb_H_notie, winProb_A_notie
+    
+
+
+
+
+
+
+
+
