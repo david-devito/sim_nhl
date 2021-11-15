@@ -19,7 +19,7 @@ import time
 import assorted_plots
 
 # INPUT
-matchupNum = 5
+matchupNum = 1
 
 # LOAD STATISTICS FILES
 print('LOAD STATS')
@@ -86,9 +86,9 @@ for teami in [['H','A'],['A','H']]:
                 try:
                     return playerStats_relative['EV' + homeOrAway].loc[x][curStat]
                 except:
-                    #print(x)
-                    return np.nanmedian(playerStats_relative['EV' + homeOrAway][curStat]) - np.std(playerStats_relative['EV' + homeOrAway][curStat])
-                    
+                    curProb = np.nanmedian(playerStats_relative['EV' + homeOrAway][curStat]) - np.std(playerStats_relative['EV' + homeOrAway][curStat])
+                    if curProb <= 0: return 0
+                    else: return curProb
             
             # Offense Goal For Probability
             GFProbOff = np.mean([getCurProb(playerStats_relative,x,dangeri + '_SC_prob_off',teami[0]) for x in playersOnIce_O])
@@ -125,7 +125,7 @@ for teami in [['H','A'],['A','H']]:
 compiled_outcomes_H = []
 compiled_outcomes_A = []
 start = time.time()
-numSims = 1
+numSims = 400
 for i in range(0,numSims):
     ## EVEN STRENGTH SIMULATION
     
@@ -165,7 +165,7 @@ for i in range(0,numSims):
         PPUnits[0] = names[teami[0]][18:23]
         PPUnits[1] = names[teami[0]][23:28]
         
-        # Determine PK units
+        # Determine PK Units Based on PK TOI Records
         PKTOI_byPlayer = assorted_minor_functions.TOIPercent('PK',names[teami[1]])
         PK_F = [x for i, x in enumerate(names[teami[1]][0:12]) if i in [x[1] for x in sorted( [(x,i) for (i,x) in enumerate(PKTOI_byPlayer[0])], reverse=True )[:4]]]
         PK_D = [x for i, x in enumerate(names[teami[1]][12:18]) if i in [x[1] for x in sorted( [(x,i) for (i,x) in enumerate(PKTOI_byPlayer[1])], reverse=True )[:4]]]
@@ -174,12 +174,8 @@ for i in range(0,numSims):
         PKUnits[1] = PK_F[2:4] + PK_D[2:4]
         
         
-        if teami[0] == 'H': 
-            timeFactor = PP_TOI_pred_H
-            #print('PP_H')
-        else: 
-            #print('PP_A')
-            timeFactor = PP_TOI_pred_A
+        if teami[0] == 'H': timeFactor = PP_TOI_pred_H
+        else: timeFactor = PP_TOI_pred_A
         totalSituationalSeconds = int(round(timeFactor*60))
         for dangeri in ['HD','MD','LD']:
             for PPUnit,PKUnit in list(itertools.product([0,1],[0,1])):
@@ -189,7 +185,7 @@ for i in range(0,numSims):
                 
                 # Get Players on Ice for Each Team
                 playersOnIce_O = PPUnits[PPUnit]
-                playersOnIce_D = PPUnits[PPUnit]
+                playersOnIce_D = PKUnits[PKUnit]
                 
                 # Get probability of scoring chance
                 # Convert all stats to per second
@@ -197,8 +193,9 @@ for i in range(0,numSims):
                     try:
                         return playerStats_relative[PPorPK + homeOrAway].loc[x][curStat + 'adjpermin']
                     except:
-                        #print(x)
-                        return np.nanmedian(playerStats_relative[PPorPK + homeOrAway][curStat + 'adjpermin']) - np.std(playerStats_relative[PPorPK + homeOrAway][curStat + 'adjpermin'])
+                        curProb = np.nanmedian(playerStats_relative[PPorPK + homeOrAway][curStat + 'adjpermin']) - np.std(playerStats_relative[PPorPK + homeOrAway][curStat + 'adjpermin'])
+                        if curProb <= 0: return 0
+                        else: return curProb
                 
                 # Offensive Stat
                 CFStat = np.mean([getCurPred(playerStats_relative,'PP',x,dangeri + 'CF',teami[0])/60 for x in playersOnIce_O])
@@ -215,9 +212,9 @@ for i in range(0,numSims):
                         try:
                             return playerStats_relative[PPorPK + homeOrAway].loc[x][curStat]
                         except:
-                            #print(x)
-                            return np.nanmedian(playerStats_relative[PPorPK + homeOrAway][curStat]) - np.std(playerStats_relative[PPorPK + homeOrAway][curStat])
-                            
+                            curProb = np.nanmedian(playerStats_relative[PPorPK + homeOrAway][curStat]) - np.std(playerStats_relative[PPorPK + homeOrAway][curStat])
+                            if curProb <= 0: return 0
+                            else: return curProb
                     
                     # Offense Goal For Probability
                     GFProbOff = np.mean([getCurProb(playerStats_relative,'PP',x,dangeri + '_SC_prob_off',teami[0]) for x in playersOnIce_O])

@@ -80,8 +80,8 @@ def kellyCalculation(prob1_notie,prob2_notie,odds1,odds2,printName1,printName2):
     kellyValue_2 = ((odds2 - 1) * (prob2_notie/100) - (1 - (prob2_notie/100))) / (odds2 - 1) * kellyMultiplier
     
     print('Kelly Values')
-    print(f"{printName1} = {round(kellyValue_1*100,2)}%")
     print(f"{printName2} = {round(kellyValue_2*100,2)}%")
+    print(f"{printName1} = {round(kellyValue_1*100,2)}%")
     print()
     
     
