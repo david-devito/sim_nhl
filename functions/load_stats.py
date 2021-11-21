@@ -15,16 +15,15 @@ def loadStats():
 
     teamStats = dict()
     for curSituation in list(itertools.product(['H','A'],['EV','PP','PK'])):
-        teamStats[curSituation[1] + '_' + curSituation[0]] = pd.read_csv('input/2020_2021_TeamStats_Rates_' + curSituation[1] + '_' + curSituation[0] + '.csv').set_index('Team',drop=True)
         teamStats[curSituation[1] + '_cnts_' + curSituation[0]] = pd.read_csv('input/2020_2021_TeamStats_Counts_' + curSituation[1] + '_' + curSituation[0] + '.csv').set_index('Team',drop=True)
     
     # GET BASELINE CORSI AND GOALS NUMBERS TO ADJUST PLAYER VALUES
     baseline_SC = dict()
-    for curSituation in list(itertools.product(['HD','MD','LD'],['EV','PP','PK'],['CF','CA','GF','GA'])):
-        curBaselineDF = pd.read_csv('input/2019_2021_TeamStats_Calcpermin_' + curSituation[1] + '.csv',encoding= 'unicode_escape').set_index('Team',drop=True)
-        baseline_SC[curSituation[0] + curSituation[1] + curSituation[2]] = curBaselineDF.loc['SUM'][curSituation[0] + curSituation[2] + 'permin']
-        
-    
+    for curDanger in ['HD','MD','LD']:
+        for curSituation in list(itertools.product(['EV','PP','PK'],['CF','CA','GF','GA'])):
+            curBaselineDF = pd.read_csv('input/2019_2021_TeamStats_Calcpermin_' + curSituation[0] + '.csv',encoding= 'unicode_escape').set_index('Team',drop=True)
+            baseline_SC[curDanger + curSituation[0] + curSituation[1]] = curBaselineDF.loc['SUM'][curDanger + curSituation[1] + 'permin']
+       
     playerStats_relative = dict()
     for curSituation in list(itertools.product(['EV','PP','PK'],['H','A'])):
         playerStats_relative[curSituation[0] + curSituation[1]] = pd.read_csv('input/2020_2021_PlayerStats_Relative_OnIce_' + curSituation[0] + '_' + curSituation[1] + '.csv',encoding= 'unicode_escape').set_index('Player',drop=True)

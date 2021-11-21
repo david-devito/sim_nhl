@@ -80,8 +80,7 @@ for teami in [['H','A'],['A','H']]:
             # Average Offensive and Defensive Stats
             ProbSCOccurs[teami[0] + dangeri + str(FLine_O) + str(DPair_O) + str(FLine_D) + str(DPair_D)] = np.mean([CFStat,CAStat])
 
-
-            # There was at least one scoring chance so calculate probability of scoring on each scoring chance
+            # Get probability of goal given that scoring chance occured
             def getCurProb(playerStats_relative,x,curStat,homeOrAway):
                 try:
                     return playerStats_relative['EV' + homeOrAway].loc[x][curStat]
@@ -114,10 +113,6 @@ for teami in [['H','A'],['A','H']]:
                 ProbGoalOccurs_adj = adjByGoalieStat(dangeri,goalieStats,ProbGoalOccurs[teami[0] + dangeri + str(FLine_O) + str(DPair_O) + str(FLine_D) + str(DPair_D)],'HomeGoalie','EV')
                 # Adjust Goal Probability based on Rest Adjustment - Subtract from Away Team Probability
                 ProbGoalOccurs[teami[0] + dangeri + str(FLine_O) + str(DPair_O) + str(FLine_D) + str(DPair_D)] = ProbGoalOccurs_adj - (ProbGoalOccurs_adj*restAdj_Goals)
-
-
-
-
 
 
 
